@@ -1,0 +1,27 @@
+[
+  {
+    "id": "avsegformer",
+    "name": "AVSegFormer",
+    "version": "v0",
+    "description": "占位权重，待上传训练后模型",
+    "input_size": "384x384",
+    "enabled": true,
+    "weight_path": "C:\\Users\\admin\\Desktop\\AVS2\\api\\data\\models\\avsegformer\\v0\\S4_res50.pth"
+  },
+  {
+    "id": "vct",
+    "name": "VCT",
+    "version": "builtin",
+    "description": "Vision-Centric Transformer（占位权重）。",
+    "input_size": "384x384",
+    "enabled": true
+  },
+  {
+    "id": "combo",
+    "name": "COMBO",
+    "version": "builtin",
+    "description": "多阶双边关系融合算法（占位权重）。",
+    "input_size": "384x384",
+    "enabled": true
+  }
+]

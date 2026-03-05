@@ -1,0 +1,36 @@
+# Node.js
+node_modules/
+dist/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+api/venv/
+api/.venv/
+.conda/
+
+# IDE
+.vscode/
+.idea/
+
+# AVS System Data (ignore large files and uploads)
+api/data/uploads/
+api/data/results/
+api/data/masks/
+api/data/logs/
+
+# Model weights (too large for git)
+api/data/models/**/*.pth
+api/data/models/**/*.pkl
+api/data/models/**/*.chkpt
+
+# Third party (if they are submodules, ignore them; if integrated code, keep them)
+# But typically we ignore large checkouts if they are just dependencies
+# api/third_party/COMBO-AVS
+
+# OS
+.DS_Store
+Thumbs.db
