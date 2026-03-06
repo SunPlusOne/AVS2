@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Union, Optional
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -26,7 +26,8 @@ def issue_admin_jwt(settings: Settings) -> tuple[str, str]:
 
 
 def require_admin(settings: Settings):
-    async def _dep(creds: HTTPAuthorizationCredentials | None = Depends(security)):
+    # Use Optional or Union[..., None] for compatibility with Python 3.8
+    async def _dep(creds: Optional[HTTPAuthorizationCredentials] = Depends(security)):
         if not creds or creds.scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="missing token")
         token = creds.credentials
@@ -43,7 +44,7 @@ def require_admin(settings: Settings):
 
 async def admin_guard(
     settings: Settings = Depends(get_settings),
-    creds: HTTPAuthorizationCredentials | None = Depends(security),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ):
     dep = require_admin(settings)
     return await dep(creds)
