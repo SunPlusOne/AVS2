@@ -42,7 +42,8 @@ fi
 
 # 3. Install Dependencies
 echo "⬇️ Installing Python dependencies..."
-pip install fastapi uvicorn python-multipart opencv-python-headless aiofiles
+# Use python -m pip to ensure we use the current environment's pip
+python -m pip install fastapi uvicorn python-multipart opencv-python-headless aiofiles python-jose
 
 # 4. Check Frontend Build
 if [ -d "dist" ]; then
