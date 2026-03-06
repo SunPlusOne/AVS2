@@ -6,26 +6,39 @@
 echo "🚀 Starting AVS2 Full Stack Deployment on AutoDL..."
 
 # 1. Check Environment
+# Try to initialize conda if 'conda' command is not found
 if ! command -v conda &> /dev/null; then
-    echo "❌ Conda not found. Please run this script in AutoDL terminal."
-    exit 1
+    # AutoDL usually has conda in /root/miniconda3/bin
+    if [ -f "/root/miniconda3/bin/conda" ]; then
+        echo "⚠️ Conda command not found, but miniconda3 exists. Initializing..."
+        source "/root/miniconda3/etc/profile.d/conda.sh"
+    else
+        echo "❌ Conda not found. Please run this script in AutoDL terminal."
+        # Don't exit immediately, try to proceed if user is already in an env (like your screenshot suggests)
+        if [ -z "$CONDA_DEFAULT_ENV" ]; then
+             exit 1
+        else
+             echo "✅ Detected active Conda env: $CONDA_DEFAULT_ENV. Proceeding..."
+        fi
+    fi
 fi
 
 # 2. Setup Conda Environment
 ENV_NAME="combo-avs"
 echo "📦 Setting up Conda environment: $ENV_NAME"
 
-# Check if env exists
-if conda info --envs | grep -q "$ENV_NAME"; then
-    echo "✅ Environment $ENV_NAME already exists."
+# Check if we are already in the correct env
+if [ "$CONDA_DEFAULT_ENV" == "$ENV_NAME" ]; then
+    echo "✅ Already in environment $ENV_NAME"
 else
-    echo "⚠️ Environment $ENV_NAME not found. Please create it first using CONDA_SETUP.md instructions."
-    exit 1
+    # Try to switch
+    if command -v conda &> /dev/null; then
+        source "$(conda info --base)/etc/profile.d/conda.sh"
+        conda activate "$ENV_NAME" || { echo "❌ Failed to activate $ENV_NAME"; exit 1; }
+    else
+        echo "⚠️ Cannot switch environment (conda command missing). Assuming current env is correct."
+    fi
 fi
-
-# Activate env
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate "$ENV_NAME"
 
 # 3. Install Dependencies
 echo "⬇️ Installing Python dependencies..."
