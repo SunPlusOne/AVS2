@@ -1,0 +1,11 @@
+{
+  "task_id": "5290035ba80944c5bc73d251466d5a5c",
+  "status": "completed",
+  "progress": 100,
+  "current_frame": 200,
+  "total_frames": 200,
+  "message": "完成耗时 6365ms",
+  "algorithm": "combo",
+  "created_at": "2026-03-06T13:47:18.511927Z",
+  "updated_at": "2026-03-06T13:47:24.883747Z"
+}

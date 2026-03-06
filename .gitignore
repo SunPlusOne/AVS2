@@ -1,6 +1,6 @@
 # Node.js
 node_modules/
-dist/
+# dist/  <-- Commented out to allow git push
 .env
 
 # Python
@@ -26,6 +26,12 @@ api/data/logs/
 api/data/models/**/*.pth
 api/data/models/**/*.pkl
 api/data/models/**/*.chkpt
+
+# Large archives
+*.zip
+*.tar
+*.gz
+*.rar
 
 # Third party (if they are submodules, ignore them; if integrated code, keep them)
 # But typically we ignore large checkouts if they are just dependencies
