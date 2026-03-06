@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -63,7 +64,7 @@ async def upload_model(
     return {"ok": True}
 
 
-@router.get("/admin/logs", response_model=list[LogEntry])
+@router.get("/admin/logs", response_model=List[LogEntry])
 async def get_logs(
     settings: Settings = Depends(get_settings),
     ok=Depends(admin_guard),
@@ -75,7 +76,7 @@ async def get_logs(
         return []
 
     lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()[-limit:]
-    out: list[LogEntry] = []
+    out: List[LogEntry] = []
     for line in lines:
         line = line.strip()
         if not line:
