@@ -130,17 +130,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="grid gap-6 lg:grid-cols-3">
-    <div class="grid gap-4 lg:col-span-1">
+  <div class="grid gap-5 lg:grid-cols-3">
+    <div class="grid gap-5 lg:col-span-1">
       <VideoUploadCard
         @uploaded="onUploaded"
       />
 
-      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="text-sm font-semibold">算法选择</div>
-        <div class="mt-1 text-xs text-slate-500">当前已接入 COMBO（部分权重）；其他算法可在管理员页上传后启用</div>
+      <div class="avs-card">
+        <div class="avs-card-title">算法选择</div>
+        <div class="avs-card-desc">当前已接入 COMBO（部分权重）；其他算法可在管理员页上传后启用</div>
         <div class="mt-4">
-          <el-select class="w-full" v-model="selectedAlgorithm" filterable placeholder="请选择算法">
+          <el-select
+            class="avs-select w-full"
+            popper-class="avs-select-dropdown"
+            v-model="selectedAlgorithm"
+            filterable
+            placeholder="请选择算法"
+          >
             <el-option
               v-for="a in algorithms.items"
               :key="a.id"
@@ -149,29 +155,31 @@ onBeforeUnmount(() => {
               :disabled="!a.enabled"
             />
           </el-select>
-          <div v-if="algorithms.error" class="mt-2 text-xs text-red-300">{{ algorithms.error }}</div>
+          <div v-if="algorithms.error" class="algo-error">{{ algorithms.error }}</div>
         </div>
         <div class="mt-4 flex gap-2">
-          <el-button type="primary" :disabled="!canStart" :loading="starting" @click="startTask">启动推理</el-button>
+          <el-button class="avs-btn-primary w-full" :disabled="!canStart" :loading="starting" @click="startTask">
+            {{ starting ? '启动中...' : '启动推理' }}
+          </el-button>
         </div>
       </div>
 
       <TaskProgressCard :task="currentTask" :on-cancel="onCancel" />
     </div>
 
-    <div class="grid gap-4 lg:col-span-2">
+    <div class="grid gap-5 lg:col-span-2">
       <ResultViewerCard
         :task-id="currentTask?.task_id ?? null"
         :status="currentTask?.status"
         :original-file="originalFile"
       />
 
-      <div class="w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div class="avs-card w-full">
         <div class="flex items-center gap-2">
-          <el-tag size="small" type="success">COMBO 已接入</el-tag>
-          <div class="text-xs font-semibold text-slate-700">说明</div>
+          <span class="avs-badge-inline">COMBO 已接入</span>
+          <div class="avs-note-title">说明</div>
         </div>
-        <div class="mt-1 text-xs leading-5 text-slate-600">
+        <div class="mt-1 avs-note-desc">
           当前可直接使用 COMBO（已上传部分权重）。
           其他算法可在管理员页上传对应权重后启用。
         </div>
@@ -179,3 +187,23 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.algo-error {
+  margin-top: 8px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.avs-note-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.avs-note-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+</style>

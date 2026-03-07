@@ -89,30 +89,30 @@ async function onRefreshLogs() {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-5">
     <div>
-      <div class="text-lg font-semibold">管理员后台</div>
-      <div class="mt-1 text-sm text-slate-500">模型权重管理与日志查询</div>
+      <div class="page-heading">管理员后台</div>
+      <div class="page-subheading">模型权重管理与日志查询</div>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-2">
-      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="text-sm font-semibold">管理员登录</div>
-        <div class="mt-1 text-xs text-slate-500">通过 /api/admin/login 获取 JWT 并存入浏览器</div>
+    <div class="grid gap-5 lg:grid-cols-2">
+      <div class="avs-card">
+        <div class="avs-card-title">管理员登录</div>
+        <div class="avs-card-desc">通过 /api/admin/login 获取 JWT 并存入浏览器</div>
 
         <div class="mt-4 grid gap-3">
           <el-input v-model="password" type="password" placeholder="管理员密码" show-password />
           <div class="flex gap-2">
-            <el-button type="primary" :loading="loggingIn" @click="onLogin">登录</el-button>
-            <el-button v-if="authed" @click="admin.clear()">退出</el-button>
+            <el-button class="avs-btn-primary" :loading="loggingIn" @click="onLogin">登录</el-button>
+            <el-button v-if="authed" class="avs-btn-secondary" @click="admin.clear()">退出</el-button>
           </div>
-          <div class="text-xs text-slate-500">当前 token：{{ authed ? admin.token.slice(0, 24) + '…' : '未登录' }}</div>
+          <div class="token-preview">当前 token：{{ authed ? admin.token.slice(0, 24) + '…' : '未登录' }}</div>
         </div>
       </div>
 
-      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="text-sm font-semibold">模型权重上传</div>
-        <div class="mt-1 text-xs text-slate-500">上传 .pth 并注册算法元数据</div>
+      <div class="avs-card">
+        <div class="avs-card-title">模型权重上传</div>
+        <div class="avs-card-desc">上传 .pth 并注册算法元数据</div>
 
         <div class="mt-4 grid gap-3">
           <el-input v-model="modelAlgorithmId" placeholder="algorithm_id (avsegformer/vct/combo/...)" />
@@ -120,39 +120,106 @@ async function onRefreshLogs() {
           <el-input v-model="modelVersion" placeholder="version" />
           <el-input v-model="modelInputSize" placeholder="input_size (224x224/384x384)" />
           <el-input v-model="modelDescription" type="textarea" :rows="3" placeholder="description" />
-          <el-switch v-model="modelEnabled" active-text="启用" inactive-text="禁用" />
+          <el-switch v-model="modelEnabled" class="model-switch" active-text="启用" inactive-text="禁用" />
           <input
-            class="block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-300"
+            class="weight-input"
             type="file"
             accept=".pth"
             @change="onPickWeight"
           />
-          <div v-if="weightFile" class="text-xs text-slate-500">已选择：{{ weightFile.name }}</div>
-          <el-button type="primary" :loading="uploading" @click="onUploadModel">上传并注册</el-button>
+          <div v-if="weightFile" class="weight-hint">已选择：{{ weightFile.name }}</div>
+          <el-button class="avs-btn-primary" :loading="uploading" @click="onUploadModel">上传并注册</el-button>
         </div>
       </div>
     </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="avs-card">
       <div class="flex items-end justify-between gap-3">
         <div>
-          <div class="text-sm font-semibold">系统日志</div>
-          <div class="mt-1 text-xs text-slate-500">支持按最新 N 条获取</div>
+          <div class="avs-card-title">系统日志</div>
+          <div class="avs-card-desc">支持按最新 N 条获取</div>
         </div>
         <div class="flex gap-2">
-          <el-button :loading="loadingLogs" @click="onRefreshLogs">刷新</el-button>
+          <el-button class="avs-btn-secondary" :loading="loadingLogs" @click="onRefreshLogs">刷新</el-button>
         </div>
       </div>
 
-      <div class="mt-4 max-h-[360px] overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
-        <div v-if="logs.length === 0" class="text-xs text-slate-500">暂无日志</div>
-        <div v-for="(l, idx) in logs" :key="idx" class="text-xs text-slate-700">
-          <span class="text-slate-500">{{ l.ts }}</span>
-          <span class="ml-2 text-slate-500">[{{ l.level }}]</span>
+      <div class="logs-panel">
+        <div v-if="logs.length === 0" class="logs-empty">暂无日志</div>
+        <div v-for="(l, idx) in logs" :key="idx" class="logs-row">
+          <span class="logs-time mono-text">{{ l.ts }}</span>
+          <span class="logs-level">[{{ l.level }}]</span>
           <span class="ml-2">{{ l.message }}</span>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.token-preview,
+.weight-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.model-switch {
+  width: fit-content;
+}
+
+.weight-input {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+
+.weight-input:hover {
+  border-color: var(--primary-border);
+}
+
+.weight-input::file-selector-button {
+  margin-right: 10px;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--info-soft);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.logs-panel {
+  margin-top: 16px;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-hover);
+  padding: 12px;
+}
+
+.logs-empty {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.logs-row {
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.logs-time,
+.logs-level {
+  color: var(--text-secondary);
+}
+</style>
 

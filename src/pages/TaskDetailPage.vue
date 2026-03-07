@@ -52,18 +52,18 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-5">
     <div class="flex items-end justify-between gap-3">
       <div>
-        <div class="text-lg font-semibold">任务详情</div>
-        <div class="mt-1 text-sm text-slate-500">task_id：{{ taskId }}</div>
+        <div class="page-heading">任务详情</div>
+        <div class="page-subheading mono-text">task_id：{{ taskId }}</div>
       </div>
       <div class="flex gap-2">
-        <el-button :loading="loading" @click="refresh">刷新</el-button>
+        <el-button class="avs-btn-secondary" :loading="loading" @click="refresh">刷新</el-button>
       </div>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid gap-5 lg:grid-cols-3">
       <div class="lg:col-span-1">
         <TaskProgressCard :task="task" :on-cancel="onCancel" />
       </div>
