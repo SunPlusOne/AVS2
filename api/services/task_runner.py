@@ -130,6 +130,43 @@ class TaskRunner:
 
         return "", checked_paths
 
+    async def _run_local_with_heartbeat(
+        self,
+        *,
+        task_id: str,
+        file_id: str,
+        algorithm: str,
+        weight_path: str,
+    ) -> None:
+        """Run local inference and keep task progress moving while subprocess works."""
+        infer_task = asyncio.create_task(
+            self._to_thread(
+                self._inference.run_inference,
+                task_id=task_id,
+                file_id=file_id,
+                algorithm=algorithm,
+                weight_path=weight_path,
+            )
+        )
+
+        start_ts = time.time()
+        while not infer_task.done():
+            elapsed = int(time.time() - start_ts)
+            if elapsed < 15:
+                progress = min(10, 2 + elapsed // 2)
+                msg = f"正在加载本地模型 {algorithm}..."
+            elif elapsed < 45:
+                progress = min(30, 10 + (elapsed - 15))
+                msg = f"正在提取视频帧与音频特征 ({elapsed}s)..."
+            else:
+                progress = min(95, 30 + (elapsed - 45) // 2)
+                msg = f"正在执行分割推理 ({elapsed}s)..."
+
+            await self._manager.update(task_id, progress=progress, message=msg)
+            await asyncio.sleep(2)
+
+        await infer_task
+
     async def run(self, *, task_id: str, file_id: str, algorithm: str) -> None:
         await self._manager.update(task_id, status="running", progress=0, message="开始预处理")
         start = time.time()
@@ -159,13 +196,12 @@ class TaskRunner:
                 )
                 
             elif supports_local_inference and has_local_weight:
-                await self._manager.update(task_id, message=f"正在加载本地模型 {algorithm}...")
-                await self._to_thread(
-                    self._inference.run_inference,
+                await self._manager.update(task_id, progress=2, message=f"正在加载本地模型 {algorithm}...")
+                await self._run_local_with_heartbeat(
                     task_id=task_id,
                     file_id=file_id,
                     algorithm=algorithm,
-                    weight_path=weight_path
+                    weight_path=weight_path,
                 )
 
             elif supports_local_inference and not has_local_weight:

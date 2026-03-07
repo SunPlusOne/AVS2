@@ -195,6 +195,11 @@ class InferenceService:
         """Runs real inference via subprocess in specific Conda environment"""
         settings = get_settings()
         project_root = Path(__file__).resolve().parent.parent.parent
+        timeout_raw = os.getenv("AVS_INFER_TIMEOUT_SEC", "1800").strip()
+        try:
+            infer_timeout_sec = max(60, int(timeout_raw))
+        except ValueError:
+            infer_timeout_sec = 1800
         
         # Check if remote inference is configured
         if settings.remote_inference_url:
@@ -250,7 +255,7 @@ class InferenceService:
             "--masks_dir", str(self._masks_dir),
         ]
         
-        self._logger.info(f"Starting subprocess: {' '.join(cmd)}")
+        self._logger.info(f"Starting subprocess (timeout={infer_timeout_sec}s): {' '.join(cmd)}")
         
         # Run subprocess
         # We capture output to log it
@@ -260,12 +265,29 @@ class InferenceService:
                 cwd=str(project_root), # Project root
                 capture_output=True, 
                 text=True, 
-                check=True
+                check=True,
+                timeout=infer_timeout_sec,
             )
             self._logger.info(f"Subprocess output: {result.stdout}")
+        except subprocess.TimeoutExpired as e:
+            stdout_tail = (e.stdout or "")[-2000:]
+            stderr_tail = (e.stderr or "")[-2000:]
+            self._logger.error(
+                "Subprocess timeout after %ss. stdout_tail=%s stderr_tail=%s",
+                infer_timeout_sec,
+                stdout_tail,
+                stderr_tail,
+            )
+            raise RuntimeError(
+                f"本地推理超时（>{infer_timeout_sec}s）。请检查 GPU/权重/视频是否异常，"
+                "也可在 .env 设置 AVS_INFER_TIMEOUT_SEC 调整超时。"
+            )
         except subprocess.CalledProcessError as e:
-            self._logger.error(f"Subprocess failed: {e.stderr}")
-            raise RuntimeError(f"Inference script failed: {e.stderr}")
+            stderr_text = (e.stderr or "").strip()
+            stdout_text = (e.stdout or "").strip()
+            detail = stderr_text or stdout_text or str(e)
+            self._logger.error(f"Subprocess failed: {detail}")
+            raise RuntimeError(f"Inference script failed: {detail}")
 
         # If successful, the script should have created the files.
         # We verify and return paths.

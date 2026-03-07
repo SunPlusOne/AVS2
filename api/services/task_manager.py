@@ -96,7 +96,20 @@ class TaskManager:
         if not p.exists():
             raise KeyError(task_id)
         data = json.loads(p.read_text(encoding="utf-8"))
-        return TaskProgress(**data)
+        persisted = TaskProgress(**data)
+
+        # If backend restarted, in-memory runtime is gone and persisted running tasks
+        # would otherwise stay "running" forever. Mark them as failed with a clear hint.
+        if persisted.status in {"queued", "running"}:
+            persisted.status = "failed"
+            persisted.message = "任务在服务重启后中断，请重新提交。"
+            persisted.updated_at = _now()
+            p.write_text(
+                json.dumps(persisted.model_dump(mode="json"), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
+        return persisted
 
     async def update(
         self,

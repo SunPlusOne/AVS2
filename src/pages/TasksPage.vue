@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { getTask } from '@/api/avs'
 import { useTasksStore } from '@/stores/tasks'
 
 const router = useRouter()
@@ -20,6 +21,18 @@ function statusLabel(status: string) {
   if (status === 'canceled') return '已取消'
   return status
 }
+
+onMounted(async () => {
+  const pending = store.items.filter((t) => t.status === 'queued' || t.status === 'running')
+  for (const item of pending) {
+    try {
+      const latest = await getTask(item.task_id)
+      store.upsert(latest)
+    } catch {
+      // Keep local snapshot when the task cannot be fetched.
+    }
+  }
+})
 </script>
 
 <template>
