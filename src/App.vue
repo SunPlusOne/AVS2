@@ -3,8 +3,8 @@
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/72">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div class="flex items-center gap-3">
-          <div class="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-xs font-extrabold text-white shadow-sm">
-            AV
+          <div class="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-[10px] font-extrabold tracking-wide text-white shadow-sm">
+            AVS
           </div>
           <div>
             <div class="text-sm font-semibold leading-4 text-slate-900">AVS System</div>

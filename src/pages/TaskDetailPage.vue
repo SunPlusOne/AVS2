@@ -3,10 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getTask, cancelTask } from '@/api/avs'
-import TaskProgressCard from '@/components/TaskProgressCard.vue'
-import ResultViewerCard from '@/components/ResultViewerCard.vue'
+import * as TaskProgressCardModule from '@/components/TaskProgressCard.vue'
+import * as ResultViewerCardModule from '@/components/ResultViewerCard.vue'
 import { useTasksStore } from '@/stores/tasks'
 import type { TaskProgress } from '@/types/contracts'
+
+const TaskProgressCard = (TaskProgressCardModule as any).default ?? TaskProgressCardModule
+const ResultViewerCard = (ResultViewerCardModule as any).default ?? ResultViewerCardModule
 
 const route = useRoute()
 const store = useTasksStore()

@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import VideoUploadCard from '@/components/VideoUploadCard.vue'
-import TaskProgressCard from '@/components/TaskProgressCard.vue'
-import ResultViewerCard from '@/components/ResultViewerCard.vue'
+import * as VideoUploadCardModule from '@/components/VideoUploadCard.vue'
+import * as TaskProgressCardModule from '@/components/TaskProgressCard.vue'
+import * as ResultViewerCardModule from '@/components/ResultViewerCard.vue'
 import { createTask, cancelTask, getTask } from '@/api/avs'
 import { getWsBaseUrl } from '@/api/http'
 import { useAlgorithmsStore } from '@/stores/algorithms'
 import { useTasksStore } from '@/stores/tasks'
 import type { AlgorithmId, TaskProgress, UploadResponse } from '@/types/contracts'
 
+const VideoUploadCard = (VideoUploadCardModule as any).default ?? VideoUploadCardModule
+const TaskProgressCard = (TaskProgressCardModule as any).default ?? TaskProgressCardModule
+const ResultViewerCard = (ResultViewerCardModule as any).default ?? ResultViewerCardModule
+
 const algorithms = useAlgorithmsStore()
 const tasksStore = useTasksStore()
 
 const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
-const selectedAlgorithm = ref<AlgorithmId>('avsegformer')
+const selectedAlgorithm = ref<AlgorithmId>('combo')
 const currentTask = ref<TaskProgress | null>(null)
 
 const starting = ref(false)
@@ -116,8 +120,8 @@ async function onCancel() {
 
 onMounted(async () => {
   await algorithms.refresh()
-  const first = algorithms.enabledItems[0]
-  if (first) selectedAlgorithm.value = first.id
+  const preferred = algorithms.enabledItems.find((a) => a.id === 'combo') ?? algorithms.enabledItems[0]
+  if (preferred) selectedAlgorithm.value = preferred.id
 })
 
 onBeforeUnmount(() => {
@@ -134,7 +138,7 @@ onBeforeUnmount(() => {
 
       <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="text-sm font-semibold">算法选择</div>
-        <div class="mt-1 text-xs text-slate-500">AVSegFormer / VCT / COMBO（可由管理员上传权重后启用）</div>
+        <div class="mt-1 text-xs text-slate-500">当前已接入 COMBO（部分权重）；其他算法可在管理员页上传后启用</div>
         <div class="mt-4">
           <el-select class="w-full" v-model="selectedAlgorithm" filterable placeholder="请选择算法">
             <el-option
@@ -162,11 +166,14 @@ onBeforeUnmount(() => {
         :original-file="originalFile"
       />
 
-      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="text-sm font-semibold">说明</div>
-        <div class="mt-2 text-sm text-slate-600">
-          当前版本的后端推理为占位实现：支持任务流转、进度推送与结果下载；待你上传训练好的权重后，可在后端模型层
-          替换推理实现而不改动 API 与前端。
+      <div class="w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div class="flex items-center gap-2">
+          <el-tag size="small" type="success">COMBO 已接入</el-tag>
+          <div class="text-xs font-semibold text-slate-700">说明</div>
+        </div>
+        <div class="mt-1 text-xs leading-5 text-slate-600">
+          当前可直接使用 COMBO（已上传部分权重）。
+          其他算法可在管理员页上传对应权重后启用。
         </div>
       </div>
     </div>
