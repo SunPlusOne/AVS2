@@ -42,11 +42,11 @@ const masksUrl = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+  <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <div class="flex items-start justify-between gap-3">
       <div>
         <div class="text-sm font-semibold">结果预览</div>
-        <div class="mt-1 text-xs text-zinc-400">支持原视频与结果视频对比（占位推理返回结果后可替换）</div>
+        <div class="mt-1 text-xs text-slate-500">支持原视频与结果视频对比</div>
       </div>
       <div class="flex items-center gap-2">
         <el-segmented
@@ -60,26 +60,26 @@ const masksUrl = computed(() => {
       </div>
     </div>
 
-    <div v-if="!canShow" class="mt-4 rounded-lg border border-dashed border-zinc-800 p-6 text-sm text-zinc-400">
+    <div v-if="!canShow" class="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
       任务完成后在此显示结果视频与下载入口。
     </div>
 
     <div v-else class="mt-4 grid gap-4">
       <div v-if="mode === 'side'" class="grid gap-4 md:grid-cols-2">
-        <div class="rounded-lg border border-zinc-800 bg-black p-2">
-          <div class="mb-2 text-xs text-zinc-400">原始视频</div>
-          <video v-if="originalUrl" class="w-full" controls :src="originalUrl" />
-          <div v-else class="text-xs text-zinc-500">本地原视频 URL 不可用</div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <div class="mb-2 text-xs text-slate-500">原始视频</div>
+          <video v-if="originalUrl" class="w-full rounded-md bg-black" controls :src="originalUrl" />
+          <div v-else class="text-xs text-slate-500">本地原视频 URL 不可用</div>
         </div>
-        <div class="rounded-lg border border-zinc-800 bg-black p-2">
-          <div class="mb-2 text-xs text-zinc-400">分割结果</div>
-          <video class="w-full" controls :src="resultUrl" />
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <div class="mb-2 text-xs text-slate-500">分割结果</div>
+          <video class="w-full rounded-md bg-black" controls :src="resultUrl" />
         </div>
       </div>
 
-      <div v-else class="rounded-lg border border-zinc-800 bg-black p-2">
-        <div class="mb-2 text-xs text-zinc-400">分割结果</div>
-        <video class="w-full" controls :src="resultUrl" />
+      <div v-else class="rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div class="mb-2 text-xs text-slate-500">分割结果</div>
+        <video class="w-full rounded-md bg-black" controls :src="resultUrl" />
       </div>
 
       <div class="flex flex-wrap gap-2">

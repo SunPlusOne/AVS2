@@ -53,7 +53,7 @@ onMounted(async () => {
     <div class="flex items-end justify-between gap-3">
       <div>
         <div class="text-lg font-semibold">任务详情</div>
-        <div class="mt-1 text-sm text-zinc-400">task_id：{{ taskId }}</div>
+        <div class="mt-1 text-sm text-slate-500">task_id：{{ taskId }}</div>
       </div>
       <div class="flex gap-2">
         <el-button :loading="loading" @click="refresh">刷新</el-button>

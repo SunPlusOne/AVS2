@@ -92,13 +92,13 @@ async function onRefreshLogs() {
   <div class="grid gap-4">
     <div>
       <div class="text-lg font-semibold">管理员后台</div>
-      <div class="mt-1 text-sm text-zinc-400">模型权重管理与日志查询（占位实现，可接入真实 JWT/权限）</div>
+      <div class="mt-1 text-sm text-slate-500">模型权重管理与日志查询</div>
     </div>
 
     <div class="grid gap-4 lg:grid-cols-2">
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="text-sm font-semibold">管理员登录</div>
-        <div class="mt-1 text-xs text-zinc-400">默认通过 /api/admin/login 获取 JWT 并存入浏览器</div>
+        <div class="mt-1 text-xs text-slate-500">通过 /api/admin/login 获取 JWT 并存入浏览器</div>
 
         <div class="mt-4 grid gap-3">
           <el-input v-model="password" type="password" placeholder="管理员密码" show-password />
@@ -106,13 +106,13 @@ async function onRefreshLogs() {
             <el-button type="primary" :loading="loggingIn" @click="onLogin">登录</el-button>
             <el-button v-if="authed" @click="admin.clear()">退出</el-button>
           </div>
-          <div class="text-xs text-zinc-400">当前 token：{{ authed ? admin.token.slice(0, 24) + '…' : '未登录' }}</div>
+          <div class="text-xs text-slate-500">当前 token：{{ authed ? admin.token.slice(0, 24) + '…' : '未登录' }}</div>
         </div>
       </div>
 
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="text-sm font-semibold">模型权重上传</div>
-        <div class="mt-1 text-xs text-zinc-400">上传 .pth 并注册算法元数据（实际推理替换在后端模型层）</div>
+        <div class="mt-1 text-xs text-slate-500">上传 .pth 并注册算法元数据</div>
 
         <div class="mt-4 grid gap-3">
           <el-input v-model="modelAlgorithmId" placeholder="algorithm_id (avsegformer/vct/combo/...)" />
@@ -122,33 +122,33 @@ async function onRefreshLogs() {
           <el-input v-model="modelDescription" type="textarea" :rows="3" placeholder="description" />
           <el-switch v-model="modelEnabled" active-text="启用" inactive-text="禁用" />
           <input
-            class="block w-full text-sm text-zinc-200 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-100 hover:file:bg-zinc-700"
+            class="block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-300"
             type="file"
             accept=".pth"
             @change="onPickWeight"
           />
-          <div v-if="weightFile" class="text-xs text-zinc-400">已选择：{{ weightFile.name }}</div>
+          <div v-if="weightFile" class="text-xs text-slate-500">已选择：{{ weightFile.name }}</div>
           <el-button type="primary" :loading="uploading" @click="onUploadModel">上传并注册</el-button>
         </div>
       </div>
     </div>
 
-    <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div class="flex items-end justify-between gap-3">
         <div>
           <div class="text-sm font-semibold">系统日志</div>
-          <div class="mt-1 text-xs text-zinc-400">支持按最新 N 条获取（占位实现）</div>
+          <div class="mt-1 text-xs text-slate-500">支持按最新 N 条获取</div>
         </div>
         <div class="flex gap-2">
           <el-button :loading="loadingLogs" @click="onRefreshLogs">刷新</el-button>
         </div>
       </div>
 
-      <div class="mt-4 max-h-[360px] overflow-auto rounded-lg border border-zinc-800 bg-black p-3">
-        <div v-if="logs.length === 0" class="text-xs text-zinc-500">暂无日志</div>
-        <div v-for="(l, idx) in logs" :key="idx" class="text-xs text-zinc-300">
-          <span class="text-zinc-500">{{ l.ts }}</span>
-          <span class="ml-2 text-zinc-400">[{{ l.level }}]</span>
+      <div class="mt-4 max-h-[360px] overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div v-if="logs.length === 0" class="text-xs text-slate-500">暂无日志</div>
+        <div v-for="(l, idx) in logs" :key="idx" class="text-xs text-slate-700">
+          <span class="text-slate-500">{{ l.ts }}</span>
+          <span class="ml-2 text-slate-500">[{{ l.level }}]</span>
           <span class="ml-2">{{ l.message }}</span>
         </div>
       </div>

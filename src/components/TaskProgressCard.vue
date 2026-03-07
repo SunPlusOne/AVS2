@@ -25,11 +25,11 @@ function statusTagType(status?: string): 'success' | 'warning' | 'danger' | 'inf
 </script>
 
 <template>
-  <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+  <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <div class="flex items-start justify-between gap-3">
       <div>
         <div class="text-sm font-semibold">任务状态</div>
-        <div v-if="task" class="mt-1 text-xs text-zinc-400">task_id：{{ task.task_id }}</div>
+        <div v-if="task" class="mt-1 text-xs text-slate-500">task_id：{{ task.task_id }}</div>
       </div>
       <div>
         <el-tag v-if="task" :type="statusTagType(task.status)">{{ statusLabel(task.status) }}</el-tag>
@@ -39,7 +39,7 @@ function statusTagType(status?: string): 'success' | 'warning' | 'danger' | 'inf
 
     <div class="mt-4">
       <el-progress :percentage="task?.progress ?? 0" />
-      <div class="mt-2 flex items-center justify-between text-xs text-zinc-400">
+      <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
         <div>
           <span v-if="task?.current_frame != null && task?.total_frames != null">
             {{ task.current_frame }} / {{ task.total_frames }} 帧
@@ -50,7 +50,7 @@ function statusTagType(status?: string): 'success' | 'warning' | 'danger' | 'inf
           <span v-if="task?.algorithm">算法：{{ task.algorithm }}</span>
         </div>
       </div>
-      <div v-if="task?.message" class="mt-2 rounded-md bg-zinc-950/60 px-3 py-2 text-xs text-zinc-300">
+      <div v-if="task?.message" class="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
         {{ task.message }}
       </div>
     </div>

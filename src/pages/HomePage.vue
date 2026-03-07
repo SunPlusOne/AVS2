@@ -132,9 +132,9 @@ onBeforeUnmount(() => {
         @uploaded="onUploaded"
       />
 
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="text-sm font-semibold">算法选择</div>
-        <div class="mt-1 text-xs text-zinc-400">AVSegFormer / VCT / COMBO（可由管理员上传权重后启用）</div>
+        <div class="mt-1 text-xs text-slate-500">AVSegFormer / VCT / COMBO（可由管理员上传权重后启用）</div>
         <div class="mt-4">
           <el-select class="w-full" v-model="selectedAlgorithm" filterable placeholder="请选择算法">
             <el-option
@@ -162,9 +162,9 @@ onBeforeUnmount(() => {
         :original-file="originalFile"
       />
 
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="text-sm font-semibold">说明</div>
-        <div class="mt-2 text-sm text-zinc-300">
+        <div class="mt-2 text-sm text-slate-600">
           当前版本的后端推理为占位实现：支持任务流转、进度推送与结果下载；待你上传训练好的权重后，可在后端模型层
           替换推理实现而不改动 API 与前端。
         </div>
