@@ -40,3 +40,6 @@ api/data/models/**/*.chkpt
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime
+.backend_uvicorn.pid

@@ -1,0 +1,11 @@
+{
+  "task_id": "ad66d7ff3ee54f6fa1ef75d948c04aae",
+  "status": "failed",
+  "progress": 0,
+  "current_frame": null,
+  "total_frames": null,
+  "message": "module 'asyncio' has no attribute 'to_thread'",
+  "algorithm": "combo",
+  "created_at": "2026-03-06T14:46:18.612077Z",
+  "updated_at": "2026-03-06T14:46:18.619166Z"
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getResultUrl, getMasksUrl } from '@/api/avs'
 
 const props = defineProps<{
@@ -9,6 +9,15 @@ const props = defineProps<{
 }>()
 
 const mode = ref<'side' | 'result'>('side')
+const cacheKey = ref(Date.now())
+
+watch(
+  () => [props.taskId, props.status],
+  () => {
+    cacheKey.value = Date.now()
+  },
+  { immediate: true },
+)
 
 const originalUrl = computed(() => {
   if (!props.originalFile) return ''
@@ -17,7 +26,7 @@ const originalUrl = computed(() => {
 
 const resultUrl = computed(() => {
   if (!props.taskId) return ''
-  return getResultUrl(props.taskId)
+  return `${getResultUrl(props.taskId)}?v=${cacheKey.value}`
 })
 
 const canShow = computed(() => props.status === 'completed' && !!props.taskId)
@@ -28,7 +37,7 @@ function onModeChange(v: 'side' | 'result') {
 
 const masksUrl = computed(() => {
   if (!props.taskId) return ''
-  return getMasksUrl(props.taskId)
+  return `${getMasksUrl(props.taskId)}?v=${cacheKey.value}`
 })
 </script>
 

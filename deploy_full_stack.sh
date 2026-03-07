@@ -43,7 +43,7 @@ fi
 # 3. Install Dependencies
 echo "⬇️ Installing Python dependencies..."
 # Use python -m pip to ensure we use the current environment's pip
-python -m pip install fastapi uvicorn python-multipart opencv-python-headless aiofiles python-jose
+python -m pip install fastapi uvicorn python-multipart opencv-python-headless aiofiles python-jose imageio-ffmpeg
 
 # 4. Check Frontend Build
 if [ -d "dist" ]; then
@@ -61,9 +61,22 @@ fi
 # 5. Configure Environment Variables
 # Create .env for production
 echo "⚙️ Configuring environment variables..."
+
+# Detect conda env path robustly for AutoDL variants
+ENV_PATH=""
+if [ -d "/root/autodl-tmp/conda/envs/$ENV_NAME" ]; then
+    ENV_PATH="/root/autodl-tmp/conda/envs/$ENV_NAME"
+elif [ -d "/root/miniconda3/envs/$ENV_NAME" ]; then
+    ENV_PATH="/root/miniconda3/envs/$ENV_NAME"
+else
+    # Fallback to current interpreter if conda env dir is not found
+    ENV_PATH="$(python -c 'import sys; print(sys.executable)' 2>/dev/null || echo '')"
+fi
+
 cat > .env <<EOF
 AVS_DATA_DIR=/root/autodl-tmp/avs_data
-AVS_ENV_COMBO=/root/miniconda3/envs/$ENV_NAME
+AVS_ENV_COMBO=$ENV_PATH
+AVS_COMBO_ROOT=/root/autodl-tmp/COMBO-AVS
 AVS_ADMIN_PASSWORD=admin
 EOF
 

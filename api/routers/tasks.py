@@ -15,6 +15,13 @@ from api.services.task_runner import TaskRunner
 router = APIRouter()
 
 
+_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @router.post("/tasks", response_model=CreateTaskResponse)
 async def create_task(
     body: CreateTaskRequest,
@@ -46,7 +53,12 @@ async def download_result(task_id: str, settings: Settings = Depends(get_setting
     path = settings.results_dir / f"{task_id}.mp4"
     if not path.exists():
         raise HTTPException(status_code=404, detail="result not found")
-    return FileResponse(str(path), media_type="video/mp4", filename=f"{task_id}.mp4")
+    return FileResponse(
+        str(path),
+        media_type="video/mp4",
+        filename=f"{task_id}.mp4",
+        headers=_NO_CACHE_HEADERS,
+    )
 
 
 @router.get("/tasks/{task_id}/masks")
@@ -54,4 +66,9 @@ async def download_masks(task_id: str, settings: Settings = Depends(get_settings
     path = settings.masks_dir / f"{task_id}.zip"
     if not path.exists():
         raise HTTPException(status_code=404, detail="masks not found")
-    return FileResponse(str(path), media_type="application/zip", filename=f"{task_id}.zip")
+    return FileResponse(
+        str(path),
+        media_type="application/zip",
+        filename=f"{task_id}.zip",
+        headers=_NO_CACHE_HEADERS,
+    )

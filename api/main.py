@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
     algorithms_repo = AlgorithmsRepo(settings.algorithms_file)
     task_manager = TaskManager(settings.tasks_dir, ws_manager, logger)
     inference = InferenceService(settings.uploads_dir, settings.results_dir, settings.masks_dir, logger)
-    task_runner = TaskRunner(task_manager, inference, logger)
+    task_runner = TaskRunner(task_manager, inference, algorithms_repo, logger)
 
     app = FastAPI(title="AVS System", version="0.1.0")
     app.add_middleware(

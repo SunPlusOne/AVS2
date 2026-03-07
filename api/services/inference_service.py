@@ -194,6 +194,7 @@ class InferenceService:
     def run_inference(self, *, task_id: str, file_id: str, algorithm: str, weight_path: str) -> dict[str, str]:
         """Runs real inference via subprocess in specific Conda environment"""
         settings = get_settings()
+        project_root = Path(__file__).resolve().parent.parent.parent
         
         # Check if remote inference is configured
         if settings.remote_inference_url:
@@ -217,18 +218,30 @@ class InferenceService:
         
         if not env_path:
             raise ValueError(f"Conda environment for {algorithm} is not configured (AVS_ENV_{algorithm.upper()})")
-            
-        python_exe = os.path.join(env_path, "python.exe") if os.name == 'nt' else os.path.join(env_path, "bin", "python")
+
+        # AVS_ENV_* can be:
+        # 1) an env root dir, 2) a direct python executable path, or 3) a command on PATH.
+        if os.path.isfile(env_path):
+            python_exe = env_path
+        elif os.path.isdir(env_path):
+            python_exe = os.path.join(env_path, "python.exe") if os.name == "nt" else os.path.join(env_path, "bin", "python")
+        else:
+            python_exe = shutil.which(env_path) or ""
         
         if not os.path.exists(python_exe):
-             # Try fallback to just "python" if env_path looks like a raw command
-             # But strictly we expect a path.
-             raise FileNotFoundError(f"Python executable not found at {python_exe}")
+            raise FileNotFoundError(f"Python executable not found at {python_exe}")
+
+        if not weight_path or not os.path.isfile(weight_path):
+            raise FileNotFoundError(f"Weight file not found: {weight_path}")
+
+        script_abs_path = project_root / script_path
+        if not script_abs_path.exists():
+            raise FileNotFoundError(f"Inference script not found: {script_abs_path}")
 
         # Construct command
         cmd = [
             python_exe,
-            script_path,
+            str(script_abs_path),
             "--task_id", task_id,
             "--file_id", file_id,
             "--weight_path", weight_path,
@@ -244,7 +257,7 @@ class InferenceService:
         try:
             result = subprocess.run(
                 cmd, 
-                cwd=str(Path(__file__).resolve().parent.parent.parent), # Project root
+                cwd=str(project_root), # Project root
                 capture_output=True, 
                 text=True, 
                 check=True
