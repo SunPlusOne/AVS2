@@ -116,6 +116,39 @@ AVS_COMBO_ROOT=/root/autodl-tmp/COMBO-AVS
 
 然后重启后端。
 
+### 4.5 VCT 本地推理配置
+
+现象：任务失败，提示 `Conda environment for vct is not configured`、`VCT_AVS source not found` 或 `weight file not found`。
+
+处理：在 `.env` 增加以下配置（按你的实际路径调整）：
+
+```ini
+AVS_ENV_VCT=/root/autodl-tmp/conda/envs/vct_avs
+AVS_VCT_ROOT=/root/autodl-tmp/VCT_AVS
+AVS_WEIGHT_VCT=/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth
+```
+
+如果你要切换 `ms3/ss`，把 `AVS_WEIGHT_VCT` 改为对应 `model_best.pth` 路径后重启后端。
+
+### 4.6 任务成功但分割视频播放失败
+
+现象：任务状态是 `completed`，但前端播放不了结果视频。
+
+常见原因：VCT 推理脚本没找到 `ffmpeg`，会退回到 `mp4v` 编码，部分浏览器不支持。
+
+处理：在 `vct_avs` 环境安装 `imageio-ffmpeg`（内置 ffmpeg 二进制）：
+
+```bash
+/root/autodl-tmp/conda/envs/vct_avs/bin/pip install imageio-ffmpeg
+```
+
+然后重启后端并重新跑一次任务：
+
+```bash
+cd /root/AVS2
+./scripts/backend_ctl.sh restart
+```
+
 ## 5. 推荐日常流程
 
 每次改完后端代码后：

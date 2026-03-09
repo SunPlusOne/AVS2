@@ -218,6 +218,9 @@ class InferenceService:
         if algorithm == "combo":
             env_path = settings.env_combo
             script_path = "api/scripts/infer_combo.py"
+        elif algorithm == "vct":
+            env_path = settings.env_vct
+            script_path = "api/scripts/infer_vct.py"
         # Add other algorithms here
         # elif algorithm == "avsegformer": ...
         

@@ -84,6 +84,17 @@ class TaskRunner:
             add("/root/S4_res50.pth")
             add("/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth")
             add("/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_PVTV2B5_bs8_80k/model_best.pth")
+        elif algorithm == "vct":
+            vct_root = os.getenv("AVS_VCT_ROOT", "").strip()
+            if vct_root:
+                add(str(Path(vct_root) / "output" / "s4_swinb_384" / "model_best.pth"))
+                add(str(Path(vct_root) / "output" / "ms3_swinb_384" / "model_best.pth"))
+                add(str(Path(vct_root) / "output" / "ss_swinb_384" / "model_best.pth"))
+
+            add("/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth")
+            add("/root/autodl-tmp/VCT_AVS/output/ms3_swinb_384/model_best.pth")
+            add("/root/autodl-tmp/VCT_AVS/output/ss_swinb_384/model_best.pth")
+            add("/root/VCT_AVS/output/s4_swinb_384/model_best.pth")
 
         algo_model_dir = settings.models_dir / algorithm
         if algo_model_dir.exists():
@@ -183,7 +194,7 @@ class TaskRunner:
             
             should_use_remote = bool(settings.remote_inference_url)
             has_local_weight = bool(weight_path) and os.path.isfile(weight_path)
-            supports_local_inference = algorithm == "combo"
+            supports_local_inference = algorithm in {"combo", "vct"}
             
             if should_use_remote:
                 await self._manager.update(task_id, message=f"正在请求远程推理 ({algorithm})...")
