@@ -1,4 +1,5 @@
 export type AlgorithmId = 'avsegformer' | 'vct' | 'combo'
+export type InferenceScene = 'single_source' | 'multi_source'
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
 
 export interface UploadResponse {
@@ -10,6 +11,7 @@ export interface UploadResponse {
 export interface CreateTaskRequest {
   file_id: string
   algorithm: AlgorithmId
+  scene?: InferenceScene
 }
 
 export interface TaskProgress {
@@ -20,6 +22,7 @@ export interface TaskProgress {
   total_frames?: number
   message?: string
   algorithm?: AlgorithmId
+  scene?: InferenceScene
   created_at?: string
   updated_at?: string
 }

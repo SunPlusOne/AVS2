@@ -28,8 +28,10 @@ async def create_task(
     manager: TaskManager = Depends(get_task_manager),
     runner: TaskRunner = Depends(get_task_runner),
 ):
-    task_id = await manager.create(file_id=body.file_id, algorithm=body.algorithm)
-    handle = asyncio.create_task(runner.run(task_id=task_id, file_id=body.file_id, algorithm=body.algorithm))
+    task_id = await manager.create(file_id=body.file_id, algorithm=body.algorithm, scene=body.scene)
+    handle = asyncio.create_task(
+        runner.run(task_id=task_id, file_id=body.file_id, algorithm=body.algorithm, scene=body.scene)
+    )
     await manager.attach_handle(task_id, handle)
     return CreateTaskResponse(task_id=task_id)
 

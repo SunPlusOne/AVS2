@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 AlgorithmId = Literal["avsegformer", "vct", "combo"]
+SceneId = Literal["single_source", "multi_source"]
 TaskStatus = Literal["queued", "running", "completed", "failed", "canceled"]
 
 
@@ -19,6 +20,7 @@ class UploadResponse(BaseModel):
 class CreateTaskRequest(BaseModel):
     file_id: str
     algorithm: AlgorithmId
+    scene: Optional[SceneId] = None
 
 
 class CreateTaskResponse(BaseModel):
@@ -33,6 +35,7 @@ class TaskProgress(BaseModel):
     total_frames: Optional[int] = None
     message: Optional[str] = None
     algorithm: Optional[AlgorithmId] = None
+    scene: Optional[SceneId] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

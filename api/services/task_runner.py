@@ -5,7 +5,7 @@ import functools
 import os
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from api.config import Settings, get_settings
 from api.services.algorithms_repo import AlgorithmsRepo
@@ -34,6 +34,13 @@ class TaskRunner:
         task = functools.partial(fn, *args, **kwargs)
         return await loop.run_in_executor(None, task)
 
+    @staticmethod
+    def _scene_to_subset(scene: Optional[str]) -> str:
+        key = str(scene or "").strip().lower()
+        if key == "multi_source":
+            return "ms3"
+        return "s4"
+
     def _get_algo_meta(self, algorithm: str) -> dict[str, Any]:
         try:
             items = self._algorithms_repo.list_all()
@@ -44,10 +51,18 @@ class TaskRunner:
                 return item
         return {}
 
-    def _build_weight_candidates(self, *, algorithm: str, settings: Settings) -> list[str]:
+    def _build_weight_candidates(
+        self,
+        *,
+        algorithm: str,
+        settings: Settings,
+        scene: Optional[str],
+        subset: str,
+    ) -> list[str]:
         algo_meta = self._get_algo_meta(algorithm)
         version = str(algo_meta.get("version", "")).strip() or "v0"
         meta_weight_path = str(algo_meta.get("weight_path", "")).strip()
+        has_scene = bool(str(scene or "").strip())
 
         candidates: list[str] = []
         seen: set[str] = set()
@@ -60,46 +75,71 @@ class TaskRunner:
             candidates.append(value)
 
         # Env var overrides have highest priority.
-        add(os.getenv(f"AVS_WEIGHT_{algorithm.upper()}", ""))
+        add(os.getenv(f"AVS_WEIGHT_{algorithm.upper()}_{subset.upper()}", ""))
+        if not has_scene:
+            add(os.getenv(f"AVS_WEIGHT_{algorithm.upper()}", ""))
         add(os.getenv("AVS_WEIGHT_PATH", ""))
 
         # Metadata path from algorithms.json.
-        add(meta_weight_path)
-        if meta_weight_path:
-            basename = Path(meta_weight_path.replace("\\", "/")).name
-            if basename:
-                add(str(settings.models_dir / algorithm / version / basename))
-                add(str(settings.models_dir / algorithm / "v0" / basename))
+        if not has_scene:
+            add(meta_weight_path)
+            if meta_weight_path:
+                basename = Path(meta_weight_path.replace("\\", "/")).name
+                if basename:
+                    add(str(settings.models_dir / algorithm / version / basename))
+                    add(str(settings.models_dir / algorithm / "v0" / basename))
 
         # Conventional local locations.
-        add(str(settings.models_dir / algorithm / version / "S4_res50.pth"))
-        add(str(settings.models_dir / algorithm / "v0" / "S4_res50.pth"))
-        add(str(settings.models_dir / algorithm / "builtin" / "S4_res50.pth"))
-        add(str(settings.models_dir / algorithm / version / "model_best.pth"))
-        add(str(settings.models_dir / algorithm / "v0" / "model_best.pth"))
+        if subset == "s4":
+            add(str(settings.models_dir / algorithm / version / "S4_res50.pth"))
+            add(str(settings.models_dir / algorithm / "v0" / "S4_res50.pth"))
+        elif subset == "ms3":
+            add(str(settings.models_dir / algorithm / version / "MS3_res50.pth"))
+            add(str(settings.models_dir / algorithm / "v0" / "MS3_res50.pth"))
+        if not has_scene or subset == "s4":
+            add(str(settings.models_dir / algorithm / "builtin" / "S4_res50.pth"))
+        if has_scene:
+            add(str(settings.models_dir / algorithm / subset / "model_best.pth"))
+        else:
+            add(str(settings.models_dir / algorithm / version / "model_best.pth"))
+            add(str(settings.models_dir / algorithm / "v0" / "model_best.pth"))
 
         if algorithm == "combo":
-            # Common AutoDL paths.
-            add("/root/autodl-tmp/S4_res50.pth")
-            add("/root/S4_res50.pth")
-            add("/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth")
-            add("/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_PVTV2B5_bs8_80k/model_best.pth")
+            combo_root = os.getenv("AVS_COMBO_ROOT", "").strip() or "/root/autodl-tmp/COMBO-AVS"
+            if subset == "s4":
+                add("/root/autodl-tmp/S4_res50.pth")
+                add("/root/S4_res50.pth")
+                add(str(Path(combo_root) / "checkpoints" / "avs_s4" / "COMBO_R50_bs8_80k" / "model_best.pth"))
+                add(str(Path(combo_root) / "checkpoints" / "avs_s4" / "COMBO_PVTV2B5_bs8_80k" / "model_best.pth"))
+                add(str(Path(combo_root) / "checkpoints" / "avs_s4_old" / "COMBO_R50_bs8_80k" / "model_best.pth"))
+            elif subset == "ms3":
+                add(str(Path(combo_root) / "checkpoints" / "avs_ms3" / "COMBO_R50_bs8_20k" / "model_best.pth"))
+                ms3_dir = Path(combo_root) / "checkpoints" / "avs_ms3"
+                if ms3_dir.exists():
+                    for p in sorted(ms3_dir.rglob("model_best.pth")):
+                        add(str(p))
         elif algorithm == "vct":
             vct_root = os.getenv("AVS_VCT_ROOT", "").strip()
-            if vct_root:
+            vct_root = vct_root or "/root/autodl-tmp/VCT_AVS"
+            if subset == "s4":
                 add(str(Path(vct_root) / "output" / "s4_swinb_384" / "model_best.pth"))
+                add("/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth")
+                add("/root/VCT_AVS/output/s4_swinb_384/model_best.pth")
+            elif subset == "ms3":
                 add(str(Path(vct_root) / "output" / "ms3_swinb_384" / "model_best.pth"))
-                add(str(Path(vct_root) / "output" / "ss_swinb_384" / "model_best.pth"))
-
-            add("/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth")
-            add("/root/autodl-tmp/VCT_AVS/output/ms3_swinb_384/model_best.pth")
-            add("/root/autodl-tmp/VCT_AVS/output/ss_swinb_384/model_best.pth")
-            add("/root/VCT_AVS/output/s4_swinb_384/model_best.pth")
+                add("/root/autodl-tmp/VCT_AVS/output/ms3_swinb_384/model_best.pth")
+                add("/root/VCT_AVS/output/ms3_swinb_384/model_best.pth")
 
         algo_model_dir = settings.models_dir / algorithm
         if algo_model_dir.exists():
-            for p in sorted(algo_model_dir.rglob("*.pth")):
-                add(str(p))
+            if has_scene:
+                subset_dir = algo_model_dir / subset
+                if subset_dir.exists():
+                    for p in sorted(subset_dir.rglob("*.pth")):
+                        add(str(p))
+            else:
+                for p in sorted(algo_model_dir.rglob("*.pth")):
+                    add(str(p))
 
         return candidates
 
@@ -126,11 +166,23 @@ class TaskRunner:
 
         return out
 
-    def _resolve_weight_path(self, *, algorithm: str, settings: Settings) -> tuple[str, list[str]]:
+    def _resolve_weight_path(
+        self,
+        *,
+        algorithm: str,
+        settings: Settings,
+        scene: Optional[str],
+        subset: str,
+    ) -> tuple[str, list[str]]:
         checked_paths: list[str] = []
         seen_checked: set[str] = set()
 
-        for raw_candidate in self._build_weight_candidates(algorithm=algorithm, settings=settings):
+        for raw_candidate in self._build_weight_candidates(
+            algorithm=algorithm,
+            settings=settings,
+            scene=scene,
+            subset=subset,
+        ):
             for candidate in self._expand_candidate(raw_path=raw_candidate, settings=settings):
                 if candidate in seen_checked:
                     continue
@@ -148,6 +200,7 @@ class TaskRunner:
         file_id: str,
         algorithm: str,
         weight_path: str,
+        subset: str,
     ) -> None:
         """Run local inference and keep task progress moving while subprocess works."""
         infer_task = asyncio.create_task(
@@ -157,6 +210,7 @@ class TaskRunner:
                 file_id=file_id,
                 algorithm=algorithm,
                 weight_path=weight_path,
+                subset=subset,
             )
         )
 
@@ -178,13 +232,19 @@ class TaskRunner:
 
         await infer_task
 
-    async def run(self, *, task_id: str, file_id: str, algorithm: str) -> None:
+    async def run(self, *, task_id: str, file_id: str, algorithm: str, scene: Optional[str] = None) -> None:
         await self._manager.update(task_id, status="running", progress=0, message="开始预处理")
         start = time.time()
         
         settings = get_settings()
+        subset = self._scene_to_subset(scene)
 
-        weight_path, checked_weight_paths = self._resolve_weight_path(algorithm=algorithm, settings=settings)
+        weight_path, checked_weight_paths = self._resolve_weight_path(
+            algorithm=algorithm,
+            settings=settings,
+            scene=scene,
+            subset=subset,
+        )
 
         try:
             # Logic:
@@ -203,7 +263,8 @@ class TaskRunner:
                     task_id=task_id,
                     file_id=file_id,
                     algorithm=algorithm,
-                    weight_path=weight_path # Passed but might be ignored by remote logic
+                    weight_path=weight_path,  # Passed but might be ignored by remote logic
+                    subset=subset,
                 )
                 
             elif supports_local_inference and has_local_weight:
@@ -213,13 +274,14 @@ class TaskRunner:
                     file_id=file_id,
                     algorithm=algorithm,
                     weight_path=weight_path,
+                    subset=subset,
                 )
 
             elif supports_local_inference and not has_local_weight:
                 checked_preview = "\n".join(f"- {p}" for p in checked_weight_paths[:8])
                 raise FileNotFoundError(
-                    f"未找到 {algorithm} 本地权重文件。请在管理员后台上传 .pth，"
-                    f"或设置 AVS_WEIGHT_{algorithm.upper()}。\n"
+                    f"未找到 {algorithm} 本地权重文件（场景: {scene or 'single_source'}，子集: {subset}）。"
+                    f"请设置 AVS_WEIGHT_{algorithm.upper()}_{subset.upper()}。\n"
                     f"已尝试路径:\n{checked_preview}"
                 )
                 

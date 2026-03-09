@@ -29,6 +29,12 @@ function statusClass(status: string) {
   return 'status-idle'
 }
 
+function sceneLabel(scene?: string) {
+  if (scene === 'single_source') return '单个物体发声'
+  if (scene === 'multi_source') return '多个物体同时发声'
+  return '—'
+}
+
 onMounted(async () => {
   const pending = store.items.filter((t) => t.status === 'queued' || t.status === 'running')
   for (const item of pending) {
@@ -64,6 +70,11 @@ onMounted(async () => {
         <el-table-column label="算法" min-width="120">
           <template #default="scope">
             <span class="text-main">{{ scope.row.algorithm ?? '—' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="场景" min-width="180">
+          <template #default="scope">
+            <span class="text-main">{{ sceneLabel(scope.row.scene) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" min-width="120">

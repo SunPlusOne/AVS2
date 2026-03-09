@@ -24,6 +24,7 @@ class TaskRuntime:
     task_id: str
     file_id: str
     algorithm: str
+    scene: Optional[str]
     status: str
     progress: int
     current_frame: Optional[int]
@@ -46,12 +47,13 @@ class TaskManager:
     def _task_path(self, task_id: str) -> Path:
         return self._tasks_dir / task_id / "task.json"
 
-    async def create(self, file_id: str, algorithm: str) -> str:
+    async def create(self, file_id: str, algorithm: str, scene: Optional[str] = None) -> str:
         task_id = uuid.uuid4().hex
         rt = TaskRuntime(
             task_id=task_id,
             file_id=file_id,
             algorithm=algorithm,
+            scene=scene,
             status="queued",
             progress=0,
             current_frame=None,
@@ -66,7 +68,12 @@ class TaskManager:
             self._tasks[task_id] = rt
         await self._persist(rt)
         await self._emit(rt)
-        log_json(self._logger, "INFO", "task_created", {"task_id": task_id, "algorithm": algorithm})
+        log_json(
+            self._logger,
+            "INFO",
+            "task_created",
+            {"task_id": task_id, "algorithm": algorithm, "scene": scene},
+        )
         return task_id
 
     async def attach_handle(self, task_id: str, handle: asyncio.Task) -> None:
@@ -88,6 +95,7 @@ class TaskManager:
                 total_frames=rt.total_frames,
                 message=rt.message,
                 algorithm=rt.algorithm,  # type: ignore
+                scene=rt.scene,  # type: ignore
                 created_at=rt.created_at,
                 updated_at=rt.updated_at,
             )
@@ -169,6 +177,7 @@ class TaskManager:
             total_frames=rt.total_frames,
             message=rt.message,
             algorithm=rt.algorithm,  # type: ignore
+            scene=rt.scene,  # type: ignore
             created_at=rt.created_at,
             updated_at=rt.updated_at,
         ).model_dump(mode="json")
@@ -183,6 +192,7 @@ class TaskManager:
             total_frames=rt.total_frames,
             message=rt.message,
             algorithm=rt.algorithm,  # type: ignore
+            scene=rt.scene,  # type: ignore
             created_at=rt.created_at,
             updated_at=rt.updated_at,
         ).model_dump(mode="json")

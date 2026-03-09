@@ -149,6 +149,29 @@ cd /root/AVS2
 ./scripts/backend_ctl.sh restart
 ```
 
+### 4.7 场景选择与权重映射（VCT/COMBO）
+
+前端现在会让用户选择“使用场景”，后端会按场景自动选择权重：
+
+- 单个物体发声 -> `s4`
+- 多个物体同时发声 -> `ms3`
+
+推荐在 `.env` 显式配置场景权重：
+
+```ini
+AVS_WEIGHT_COMBO_S4=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth
+AVS_WEIGHT_COMBO_MS3=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_ms3/COMBO_R50_bs8_20k/model_best.pth
+AVS_WEIGHT_VCT_S4=/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth
+AVS_WEIGHT_VCT_MS3=/root/autodl-tmp/VCT_AVS/output/ms3_swinb_384/model_best.pth
+```
+
+改完后执行：
+
+```bash
+cd /root/AVS2
+./scripts/backend_ctl.sh restart
+```
+
 ## 5. 推荐日常流程
 
 每次改完后端代码后：

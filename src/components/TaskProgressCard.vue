@@ -31,6 +31,13 @@ const frameText = computed(() => {
   return '—'
 })
 
+const sceneText = computed(() => {
+  if (!props.task?.scene) return '—'
+  if (props.task.scene === 'single_source') return '单个物体发声'
+  if (props.task.scene === 'multi_source') return '多个物体同时发声'
+  return props.task.scene
+})
+
 const statusDescription = computed(() => {
   if (!props.task) return '任务尚未开始'
   if (props.task.status === 'running' && props.task.current_frame != null && props.task.total_frames != null) {
@@ -68,6 +75,7 @@ const statusDescription = computed(() => {
       <div class="progress-meta">
         <span>{{ frameText }}</span>
         <span v-if="task?.algorithm">算法：{{ task.algorithm }}</span>
+        <span v-if="task?.scene">场景：{{ sceneText }}</span>
       </div>
 
       <div class="progress-desc">{{ statusDescription }}</div>

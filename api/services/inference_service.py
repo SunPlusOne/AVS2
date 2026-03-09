@@ -191,7 +191,15 @@ class InferenceService:
             "report": str(report_path),
         }
 
-    def run_inference(self, *, task_id: str, file_id: str, algorithm: str, weight_path: str) -> dict[str, str]:
+    def run_inference(
+        self,
+        *,
+        task_id: str,
+        file_id: str,
+        algorithm: str,
+        weight_path: str,
+        subset: str = "",
+    ) -> dict[str, str]:
         """Runs real inference via subprocess in specific Conda environment"""
         settings = get_settings()
         project_root = Path(__file__).resolve().parent.parent.parent
@@ -257,6 +265,8 @@ class InferenceService:
             "--results_dir", str(self._results_dir),
             "--masks_dir", str(self._masks_dir),
         ]
+        if algorithm == "vct" and subset:
+            cmd.extend(["--subset", subset])
         
         self._logger.info(f"Starting subprocess (timeout={infer_timeout_sec}s): {' '.join(cmd)}")
         
