@@ -20,21 +20,38 @@ const tasksStore = useTasksStore()
 const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
 const selectedAlgorithm = ref<AlgorithmId>('combo')
-const selectedScene = ref<InferenceScene>('single_source')
+const selectedScene = ref<InferenceScene>('auto_detect')
 const currentTask = ref<TaskProgress | null>(null)
 
 const starting = ref(false)
 const wsRef = ref<WebSocket | null>(null)
 let pollTimer: number | null = null
 
-const canStart = computed(() => !!uploaded.value && !starting.value)
+const canStart = computed(() => !!uploaded.value?.file_id && !starting.value)
 const needsSceneSelection = computed(
   () => selectedAlgorithm.value === 'combo' || selectedAlgorithm.value === 'vct' || selectedAlgorithm.value === 'avsegformer',
 )
 
+const startDisabledReason = computed(() => {
+  if (starting.value) return '任务启动中，请稍候'
+  if (!originalFile.value) return '请先上传视频'
+  if (!uploaded.value?.file_id) return '文件尚未上传完成，请先获取 file_id'
+  return ''
+})
+
 function onUploaded(payload: { file: File; res: UploadResponse }) {
   uploaded.value = payload.res
   originalFile.value = payload.file
+
+  if (payload.res.recommended_scene && selectedScene.value === 'auto_detect') {
+    // Keep auto mode selected; resolved scene is displayed in task status from backend.
+    selectedScene.value = 'auto_detect'
+  }
+}
+
+function onSelectedFile(file: File) {
+  originalFile.value = file
+  uploaded.value = null
 }
 
 function cleanupRealtime() {
@@ -103,6 +120,18 @@ async function startTask() {
       progress: 0,
       algorithm: selectedAlgorithm.value,
       scene: needsSceneSelection.value ? selectedScene.value : undefined,
+      resolved_scene:
+        selectedScene.value === 'multi_source'
+          ? 'multi_source'
+          : selectedScene.value === 'single_source'
+            ? 'single_source'
+            : uploaded.value.recommended_scene,
+      filename: uploaded.value.filename,
+      fps: uploaded.value.fps,
+      duration_seconds: uploaded.value.duration_seconds,
+      width: uploaded.value.width,
+      height: uploaded.value.height,
+      total_frames: uploaded.value.total_frames,
     }
     tasksStore.upsert(currentTask.value)
     attachWebSocket(task_id)
@@ -142,6 +171,7 @@ onBeforeUnmount(() => {
   <div class="grid gap-5 lg:grid-cols-3">
     <div class="grid gap-5 lg:col-span-1">
       <VideoUploadCard
+        @selected="onSelectedFile"
         @uploaded="onUploaded"
       />
 
@@ -170,6 +200,9 @@ onBeforeUnmount(() => {
         <div v-if="needsSceneSelection" class="mt-4">
           <div class="scene-title">使用场景</div>
           <el-radio-group v-model="selectedScene" class="scene-group">
+            <el-radio label="auto_detect" border>
+              自动检测（推荐，按音频能量阈值判断）
+            </el-radio>
             <el-radio label="single_source" border>
               单个物体发声（画面中只有一个物体在发声）
             </el-radio>
@@ -180,9 +213,13 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="mt-4 flex gap-2">
-          <el-button class="avs-btn-primary w-full" :disabled="!canStart" :loading="starting" @click="startTask">
-            {{ starting ? '启动中...' : '启动推理' }}
-          </el-button>
+          <el-tooltip :content="startDisabledReason" :disabled="canStart || !startDisabledReason" placement="top">
+            <div class="w-full">
+              <el-button class="avs-btn-primary w-full" :disabled="!canStart" :loading="starting" @click="startTask">
+                {{ starting ? '启动中...' : '启动推理' }}
+              </el-button>
+            </div>
+          </el-tooltip>
         </div>
       </div>
 

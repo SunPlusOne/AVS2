@@ -5,6 +5,7 @@ import type {
   CreateTaskRequest,
   LogEntry,
   TaskProgress,
+  TaskReport,
   UploadResponse,
 } from '@/types/contracts'
 
@@ -29,6 +30,11 @@ export async function createTask(body: CreateTaskRequest): Promise<{ task_id: st
 
 export async function getTask(taskId: string): Promise<TaskProgress> {
   const { data } = await api.get<TaskProgress>(`/api/tasks/${encodeURIComponent(taskId)}`)
+  return data
+}
+
+export async function getTaskReport(taskId: string): Promise<TaskReport> {
+  const { data } = await api.get<TaskReport>(`/api/tasks/${encodeURIComponent(taskId)}/report`)
   return data
 }
 

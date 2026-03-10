@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 AlgorithmId = Literal["avsegformer", "vct", "combo"]
-SceneId = Literal["single_source", "multi_source"]
+SceneId = Literal["single_source", "multi_source", "auto_detect"]
 TaskStatus = Literal["queued", "running", "completed", "failed", "canceled"]
 
 
@@ -15,6 +15,22 @@ class UploadResponse(BaseModel):
     file_id: str
     filename: str
     size_bytes: int
+    duration_seconds: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    fps: Optional[float] = None
+    total_frames: Optional[int] = None
+    audio_energy: Optional[float] = None
+    recommended_scene: Optional[Literal["single_source", "multi_source"]] = None
+
+
+class TaskMetrics(BaseModel):
+    jaccard: Optional[float] = None
+    f_measure: Optional[float] = None
+    jf_mean: Optional[float] = None
+    total_inference_ms: Optional[int] = None
+    avg_frame_ms: Optional[float] = None
+    processed_frames: Optional[int] = None
 
 
 class CreateTaskRequest(BaseModel):
@@ -36,6 +52,13 @@ class TaskProgress(BaseModel):
     message: Optional[str] = None
     algorithm: Optional[AlgorithmId] = None
     scene: Optional[SceneId] = None
+    resolved_scene: Optional[Literal["single_source", "multi_source"]] = None
+    filename: Optional[str] = None
+    fps: Optional[float] = None
+    duration_seconds: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    metrics: Optional[TaskMetrics] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

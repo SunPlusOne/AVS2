@@ -28,14 +28,18 @@ const frameText = computed(() => {
   if (props.task?.current_frame != null && props.task.total_frames != null) {
     return `${props.task.current_frame} / ${props.task.total_frames} 帧`
   }
-  return '—'
+  if (props.task?.status === 'running') return '正在准备帧信息...'
+  if (props.task?.status === 'queued') return '等待调度...'
+  return '待处理'
 })
 
 const sceneText = computed(() => {
-  if (!props.task?.scene) return '—'
-  if (props.task.scene === 'single_source') return '单个物体发声'
-  if (props.task.scene === 'multi_source') return '多个物体同时发声'
-  return props.task.scene
+  const scene = props.task?.resolved_scene ?? props.task?.scene
+  if (!scene) return '—'
+  if (scene === 'single_source') return '单个物体发声'
+  if (scene === 'multi_source') return '多个物体同时发声'
+  if (scene === 'auto_detect') return '自动检测'
+  return scene
 })
 
 const statusDescription = computed(() => {
@@ -48,6 +52,42 @@ const statusDescription = computed(() => {
   if (props.task.status === 'failed') return '处理失败，请检查日志后重试'
   if (props.task.status === 'canceled') return '任务已取消'
   return props.task.message ?? '处理中'
+})
+
+function formatPct(value?: number): string {
+  if (value == null || !Number.isFinite(value)) return '--'
+  return `${value.toFixed(2)}%`
+}
+
+function formatTime(totalMs?: number, avgFrameMs?: number): string {
+  if (totalMs == null || !Number.isFinite(totalMs)) return '--'
+  const seconds = totalMs / 1000
+  const totalText = seconds >= 1 ? `${seconds.toFixed(2)}s` : `${totalMs}ms`
+  if (avgFrameMs == null || !Number.isFinite(avgFrameMs)) return totalText
+  return `${totalText} / ${avgFrameMs.toFixed(2)}ms/帧`
+}
+
+const metricsCards = computed(() => {
+  const metrics = props.task?.metrics
+  if (!props.task || props.task.status !== 'completed') return []
+  return [
+    { label: 'J (Jaccard)', value: formatPct(metrics?.jaccard) },
+    { label: 'F (F-measure)', value: formatPct(metrics?.f_measure) },
+    { label: 'J&F 均值', value: formatPct(metrics?.jf_mean) },
+    {
+      label: '推理耗时',
+      value: formatTime(metrics?.total_inference_ms, metrics?.avg_frame_ms),
+    },
+    {
+      label: '处理帧数',
+      value:
+        metrics?.processed_frames != null
+          ? `${metrics.processed_frames} 帧`
+          : props.task.total_frames != null
+            ? `${props.task.total_frames} 帧`
+            : '--',
+    },
+  ]
 })
 </script>
 
@@ -75,13 +115,20 @@ const statusDescription = computed(() => {
       <div class="progress-meta">
         <span>{{ frameText }}</span>
         <span v-if="task?.algorithm">算法：{{ task.algorithm }}</span>
-        <span v-if="task?.scene">场景：{{ sceneText }}</span>
+        <span v-if="task?.scene || task?.resolved_scene">场景：{{ sceneText }}</span>
       </div>
 
       <div class="progress-desc">{{ statusDescription }}</div>
 
       <div v-if="task?.message" class="task-message">
         {{ task.message }}
+      </div>
+
+      <div v-if="metricsCards.length" class="metrics-grid">
+        <div v-for="card in metricsCards" :key="card.label" class="metric-item">
+          <div class="metric-label">{{ card.label }}</div>
+          <div class="metric-value">{{ card.value }}</div>
+        </div>
       </div>
     </div>
 
@@ -253,6 +300,40 @@ const statusDescription = computed(() => {
   color: var(--text-primary);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.metrics-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric-item {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  padding: 10px 12px;
+}
+
+.metric-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.metric-value {
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .metrics-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .task-actions {

@@ -21,6 +21,12 @@ const uploading = ref(false)
 const logs = ref<{ ts: string; level: string; message: string }[]>([])
 const loadingLogs = ref(false)
 
+const benchmarkRows = [
+  { model: 'AVSegFormer', s4_jf: '78.4%', ms3_jf: '54.0%', params: '47M', speed: '~50ms/帧' },
+  { model: 'VCT', s4_jf: '81.2%', ms3_jf: '58.3%', params: '52M', speed: '~80ms/帧' },
+  { model: 'COMBO', s4_jf: '83.1%', ms3_jf: '61.7%', params: '68M', speed: '~100ms/帧' },
+]
+
 const authed = computed(() => admin.token.length > 0)
 
 async function onLogin() {
@@ -134,6 +140,19 @@ async function onRefreshLogs() {
     </div>
 
     <div class="avs-card">
+      <div class="avs-card-title">基准性能（AVSBench 官方测试集）</div>
+      <div class="avs-card-desc">用于答辩演示模型选型依据，静态基准数据不会随在线推理波动</div>
+
+      <el-table class="avs-table benchmark-table" :data="benchmarkRows" size="small" style="width: 100%">
+        <el-table-column prop="model" label="模型" min-width="140" />
+        <el-table-column prop="s4_jf" label="S4 J&F" min-width="120" />
+        <el-table-column prop="ms3_jf" label="MS3 J&F" min-width="120" />
+        <el-table-column prop="params" label="参数量" min-width="120" />
+        <el-table-column prop="speed" label="推理速度" min-width="140" />
+      </el-table>
+    </div>
+
+    <div class="avs-card">
       <div class="flex items-end justify-between gap-3">
         <div>
           <div class="avs-card-title">系统日志</div>
@@ -220,6 +239,10 @@ async function onRefreshLogs() {
 .logs-time,
 .logs-level {
   color: var(--text-secondary);
+}
+
+.benchmark-table {
+  margin-top: 12px;
 }
 </style>
 

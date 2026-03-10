@@ -15,6 +15,7 @@
         <nav class="app-nav">
           <RouterLink to="/" class="nav-link">工作台</RouterLink>
           <RouterLink to="/tasks" class="nav-link">任务中心</RouterLink>
+          <RouterLink to="/compare" class="nav-link">模型对比</RouterLink>
           <RouterLink to="/admin" class="nav-link">管理员</RouterLink>
         </nav>
       </div>

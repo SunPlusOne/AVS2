@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import json
+import math
 import os
 import time
 from pathlib import Path
 from typing import Any, Optional
 
 from api.config import Settings, get_settings
+from api.schemas.contracts import TaskMetrics
 from api.services.algorithms_repo import AlgorithmsRepo
 from api.services.inference_service import InferenceService
 from api.services.task_manager import TaskManager
@@ -40,6 +43,121 @@ class TaskRunner:
         if key == "multi_source":
             return "ms3"
         return "s4"
+
+    @staticmethod
+    def _normalize_scene(scene: Optional[str]) -> str:
+        key = str(scene or "").strip().lower()
+        if key == "multi_source":
+            return "multi_source"
+        return "single_source"
+
+    @staticmethod
+    def _to_float(raw: object) -> Optional[float]:
+        if raw is None:
+            return None
+        try:
+            value = float(raw)
+        except Exception:
+            return None
+        if not math.isfinite(value):
+            return None
+        return value
+
+    @staticmethod
+    def _to_int(raw: object) -> Optional[int]:
+        if raw is None:
+            return None
+        try:
+            value = int(raw)
+        except Exception:
+            return None
+        if value <= 0:
+            return None
+        return value
+
+    async def _resolve_scene(self, *, task_id: str, file_id: str, scene: Optional[str], settings: Settings) -> str:
+        key = str(scene or "").strip().lower()
+        if key in {"single_source", "multi_source"}:
+            normalized = self._normalize_scene(key)
+            await self._manager.update(task_id, resolved_scene=normalized)
+            return normalized
+
+        # auto_detect: prefer value already inferred during upload.
+        upload_meta_path = settings.uploads_dir / f"{file_id}.meta.json"
+        if upload_meta_path.exists():
+            try:
+                payload = json.loads(upload_meta_path.read_text(encoding="utf-8"))
+                recommended = self._normalize_scene(payload.get("recommended_scene"))
+                await self._manager.update(task_id, resolved_scene=recommended)
+                return recommended
+            except Exception:
+                pass
+
+        fallback = "single_source"
+        await self._manager.update(task_id, resolved_scene=fallback)
+        return fallback
+
+    def _load_report(self, *, task_id: str, settings: Settings) -> dict[str, Any]:
+        p = settings.results_dir / f"{task_id}.report.json"
+        if not p.exists():
+            return {}
+        try:
+            payload = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        if isinstance(payload, dict):
+            return payload
+        return {}
+
+    def _metrics_from_report(self, report: dict[str, Any], *, fallback_cost_ms: int) -> Optional[TaskMetrics]:
+        metrics = report.get("metrics") if isinstance(report.get("metrics"), dict) else {}
+        processing = report.get("processing") if isinstance(report.get("processing"), dict) else {}
+
+        jaccard = self._to_float(metrics.get("jaccard"))
+        if jaccard is None:
+            jaccard = self._to_float(metrics.get("J"))
+
+        f_measure = self._to_float(metrics.get("f_measure"))
+        if f_measure is None:
+            f_measure = self._to_float(metrics.get("F"))
+
+        jf_mean = self._to_float(metrics.get("jf_mean"))
+        if jf_mean is None:
+            jf_mean = self._to_float(metrics.get("J&F"))
+
+        total_inference_ms = self._to_int(processing.get("total_ms"))
+        if total_inference_ms is None:
+            total_inference_ms = self._to_int(metrics.get("total_inference_ms"))
+        if total_inference_ms is None:
+            total_inference_ms = fallback_cost_ms
+
+        processed_frames = self._to_int(processing.get("processed_frames"))
+        if processed_frames is None:
+            processed_frames = self._to_int(metrics.get("processed_frames"))
+        if processed_frames is None:
+            processed_frames = self._to_int(report.get("frames"))
+        if processed_frames is None:
+            coverage = report.get("mask_coverage_pct_by_frame")
+            if isinstance(coverage, list):
+                processed_frames = len(coverage)
+
+        avg_frame_ms = self._to_float(processing.get("avg_frame_ms"))
+        if avg_frame_ms is None:
+            avg_frame_ms = self._to_float(metrics.get("avg_frame_ms"))
+        if avg_frame_ms is None and processed_frames:
+            avg_frame_ms = float(total_inference_ms) / float(processed_frames)
+
+        if jaccard is None and f_measure is None and jf_mean is None and not processed_frames:
+            return None
+
+        return TaskMetrics(
+            jaccard=jaccard,
+            f_measure=f_measure,
+            jf_mean=jf_mean,
+            total_inference_ms=total_inference_ms,
+            avg_frame_ms=avg_frame_ms,
+            processed_frames=processed_frames,
+        )
 
     def _get_algo_meta(self, algorithm: str) -> dict[str, Any]:
         try:
@@ -220,6 +338,13 @@ class TaskRunner:
         subset: str,
     ) -> None:
         """Run local inference and keep task progress moving while subprocess works."""
+        total_frames = None
+        try:
+            current = await self._manager.get(task_id)
+            total_frames = current.total_frames
+        except Exception:
+            total_frames = None
+
         infer_task = asyncio.create_task(
             self._to_thread(
                 self._inference.run_inference,
@@ -244,7 +369,18 @@ class TaskRunner:
                 progress = min(95, 30 + (elapsed - 45) // 2)
                 msg = f"正在执行分割推理 ({elapsed}s)..."
 
-            await self._manager.update(task_id, progress=progress, message=msg)
+            current_frame = None
+            if total_frames and progress > 20:
+                current_frame = max(1, min(total_frames, int(round(total_frames * progress / 100.0))))
+                msg = f"正在处理第 {current_frame} 帧 / 共 {total_frames} 帧"
+
+            await self._manager.update(
+                task_id,
+                progress=progress,
+                message=msg,
+                current_frame=current_frame,
+                total_frames=total_frames,
+            )
             await asyncio.sleep(2)
 
         await infer_task
@@ -252,14 +388,15 @@ class TaskRunner:
     async def run(self, *, task_id: str, file_id: str, algorithm: str, scene: Optional[str] = None) -> None:
         await self._manager.update(task_id, status="running", progress=0, message="开始预处理")
         start = time.time()
-        
+
         settings = get_settings()
-        subset = self._scene_to_subset(scene)
+        resolved_scene = await self._resolve_scene(task_id=task_id, file_id=file_id, scene=scene, settings=settings)
+        subset = self._scene_to_subset(resolved_scene)
 
         weight_path, checked_weight_paths = self._resolve_weight_path(
             algorithm=algorithm,
             settings=settings,
-            scene=scene,
+            scene=resolved_scene,
             subset=subset,
         )
 
@@ -297,7 +434,7 @@ class TaskRunner:
             elif supports_local_inference and not has_local_weight:
                 checked_preview = "\n".join(f"- {p}" for p in checked_weight_paths[:8])
                 raise FileNotFoundError(
-                    f"未找到 {algorithm} 本地权重文件（场景: {scene or 'single_source'}，子集: {subset}）。"
+                    f"未找到 {algorithm} 本地权重文件（场景: {resolved_scene}，子集: {subset}）。"
                     f"请设置 AVS_WEIGHT_{algorithm.upper()}_{subset.upper()}。\n"
                     f"已尝试路径:\n{checked_preview}"
                 )
@@ -312,7 +449,12 @@ class TaskRunner:
                 for i in range(1, total_frames + 1, 5): # speed up simulation
                     await asyncio.sleep(0.05)
                     p = int(i * 100 / total_frames)
-                    await self._manager.update(task_id, progress=p, current_frame=i)
+                    await self._manager.update(
+                        task_id,
+                        progress=p,
+                        current_frame=i,
+                        message=f"正在处理第 {i} 帧 / 共 {total_frames} 帧",
+                    )
                 
                 await self._manager.update(task_id, message="生成结果文件")
                 await self._to_thread(
@@ -330,6 +472,29 @@ class TaskRunner:
             return
 
         cost_ms = int((time.time() - start) * 1000)
+        report = self._load_report(task_id=task_id, settings=settings)
+        metrics = self._metrics_from_report(report, fallback_cost_ms=cost_ms)
+
+        report_frames = self._to_int(report.get("frames")) if report else None
+        if report_frames is None and metrics and metrics.processed_frames:
+            report_frames = int(metrics.processed_frames)
+        report_duration = self._to_float(report.get("duration_seconds")) if report else None
+        report_fps = self._to_float(report.get("fps")) if report else None
+        report_width = self._to_int(report.get("width")) if report else None
+        report_height = self._to_int(report.get("height")) if report else None
+
         msg = f"完成耗时 {cost_ms}ms"
-        await self._manager.update(task_id, status="completed", progress=100, message=msg)
+        await self._manager.update(
+            task_id,
+            status="completed",
+            progress=100,
+            message=msg,
+            current_frame=report_frames,
+            total_frames=report_frames,
+            fps=report_fps,
+            duration_seconds=report_duration,
+            width=report_width,
+            height=report_height,
+            metrics=metrics,
+        )
         log_json(self._logger, "INFO", "task_completed", {"task_id": task_id, "ms": cost_ms})

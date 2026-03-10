@@ -23,7 +23,7 @@ def create_app() -> FastAPI:
 
     ws_manager = WSManager()
     algorithms_repo = AlgorithmsRepo(settings.algorithms_file)
-    task_manager = TaskManager(settings.tasks_dir, ws_manager, logger)
+    task_manager = TaskManager(settings.tasks_dir, settings.uploads_dir, ws_manager, logger)
     inference = InferenceService(settings.uploads_dir, settings.results_dir, settings.masks_dir, logger)
     task_runner = TaskRunner(task_manager, inference, algorithms_repo, logger)
 

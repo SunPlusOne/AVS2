@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from api.deps import get_settings
 from api.config import Settings
 from api.schemas.contracts import UploadResponse
+from api.services.media_inspector import probe_video_metadata
 
 
 router = APIRouter()
@@ -38,4 +40,38 @@ async def upload(file: UploadFile = File(...), settings: Settings = Depends(get_
             f.write(chunk)
             size += len(chunk)
 
-    return UploadResponse(file_id=file_id, filename=filename, size_bytes=size)
+    meta = probe_video_metadata(save_path)
+
+    sidecar = settings.uploads_dir / f"{file_id}.meta.json"
+    sidecar.write_text(
+        json.dumps(
+            {
+                "file_id": file_id,
+                "filename": filename,
+                "size_bytes": size,
+                "duration_seconds": meta.duration_seconds,
+                "width": meta.width,
+                "height": meta.height,
+                "fps": meta.fps,
+                "total_frames": meta.total_frames,
+                "audio_energy": meta.audio_energy,
+                "recommended_scene": meta.recommended_scene,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    return UploadResponse(
+        file_id=file_id,
+        filename=filename,
+        size_bytes=size,
+        duration_seconds=meta.duration_seconds,
+        width=meta.width,
+        height=meta.height,
+        fps=meta.fps,
+        total_frames=meta.total_frames,
+        audio_energy=meta.audio_energy,
+        recommended_scene=meta.recommended_scene,  # type: ignore[arg-type]
+    )

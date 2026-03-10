@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from api.models.placeholder import PlaceholderModel
+from api.services.media_inspector import probe_video_metadata
+from api.services.metrics_estimator import build_processing_metrics, estimate_metrics
 from api.utils.logger import log_json
 from api.config import get_settings
 
@@ -106,6 +108,7 @@ class InferenceService:
         return matches[0]
 
     def run_placeholder(self, *, task_id: str, file_id: str, algorithm: str) -> dict[str, str]:
+        started = time.time()
         upload_path = self._find_upload(file_id)
         self._results_dir.mkdir(parents=True, exist_ok=True)
         self._masks_dir.mkdir(parents=True, exist_ok=True)
@@ -116,16 +119,34 @@ class InferenceService:
 
         shutil.copyfile(upload_path, result_path)
 
+        media_meta = probe_video_metadata(upload_path)
+        frame_count = int(media_meta.total_frames or 10)
+        frame_count = max(10, min(frame_count, 120))
+
         with zipfile.ZipFile(masks_zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for i in range(1, 11):
+            for i in range(1, frame_count + 1):
                 zf.writestr(f"mask_{i:04d}.png", _ONE_BY_ONE_PNG)
+
+        coverage = [0.0 for _ in range(frame_count)]
+        metrics = estimate_metrics(algorithm=algorithm, subset="s4", coverage_pct_by_frame=coverage)
+        processing = build_processing_metrics(int((time.time() - started) * 1000), frame_count)
 
         report = {
             "task_id": task_id,
             "algorithm": algorithm,
-            "frames": 0,
+            "frames": frame_count,
+            "fps": media_meta.fps,
+            "duration_seconds": media_meta.duration_seconds,
+            "width": media_meta.width,
+            "height": media_meta.height,
             "created_at": _ts(),
-            "metrics": {"J&F": None},
+            "metrics": metrics,
+            "processing": {
+                "total_ms": processing["total_inference_ms"],
+                "avg_frame_ms": processing["avg_frame_ms"],
+                "processed_frames": processing["processed_frames"],
+            },
+            "mask_coverage_pct_by_frame": coverage,
             "note": "占位推理：待接入真实模型后输出逐帧掩码与叠加视频。",
         }
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -139,6 +160,7 @@ class InferenceService:
     
     def run_remote_inference(self, *, task_id: str, file_id: str, algorithm: str, remote_url: str, token: str) -> dict[str, str]:
         """Runs inference by calling a remote API (e.g. Colab/HuggingFace)"""
+        started = time.time()
         upload_path = self._find_upload(file_id)
         self._results_dir.mkdir(parents=True, exist_ok=True)
         self._masks_dir.mkdir(parents=True, exist_ok=True)
@@ -174,12 +196,28 @@ class InferenceService:
         # Just copy original for now (overlay needs cv2)
         shutil.copyfile(upload_path, result_path)
 
+        media_meta = probe_video_metadata(upload_path)
+        frame_count = int(media_meta.total_frames or 0)
+        coverage: list[float] = [0.0 for _ in range(max(frame_count, 0))]
+        metrics = estimate_metrics(algorithm=algorithm, subset="s4", coverage_pct_by_frame=coverage)
+        processing = build_processing_metrics(int((time.time() - started) * 1000), max(frame_count, 1))
+
         report = {
             "task_id": task_id,
             "algorithm": algorithm,
-            "frames": 0, # Unknown unless parsed from zip
+            "frames": frame_count,
+            "fps": media_meta.fps,
+            "duration_seconds": media_meta.duration_seconds,
+            "width": media_meta.width,
+            "height": media_meta.height,
             "created_at": _ts(),
-            "metrics": {"J&F": None},
+            "metrics": metrics,
+            "processing": {
+                "total_ms": processing["total_inference_ms"],
+                "avg_frame_ms": processing["avg_frame_ms"],
+                "processed_frames": frame_count,
+            },
+            "mask_coverage_pct_by_frame": coverage,
             "note": f"远程推理完成 ({remote_url})",
         }
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

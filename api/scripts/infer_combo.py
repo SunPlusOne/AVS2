@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import json
+import time
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +17,8 @@ from pathlib import Path
 # Add project root to sys.path to import modules
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+from api.services.metrics_estimator import build_processing_metrics, estimate_metrics
 
 # Import adapter (this script runs in the correct Conda env, so imports should work)
 try:
@@ -230,7 +233,7 @@ def render_overlay_video(
     masks_bytes: List[bytes],
     out_path: Path,
     fps: float,
-) -> int:
+) -> Tuple[int, List[float]]:
     if not frames_rgb:
         raise RuntimeError("No frames extracted from input video")
 
@@ -241,11 +244,14 @@ def render_overlay_video(
         raise RuntimeError(f"Failed to open video writer: {out_path}")
 
     non_empty_masks = 0
+    coverage_pct_by_frame: List[float] = []
     for idx, frame_rgb in enumerate(frames_rgb):
         frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+        frame_cov = 0.0
         if idx < len(masks_bytes):
             mask = _decode_mask(masks_bytes[idx], (width, height))
             mask_bool = mask > 127
+            frame_cov = float(mask_bool.mean() * 100.0)
             if np.any(mask_bool):
                 non_empty_masks += 1
 
@@ -262,12 +268,14 @@ def render_overlay_video(
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 cv2.drawContours(frame_bgr, contours, -1, (0, 255, 255), 2)
 
+        coverage_pct_by_frame.append(round(frame_cov, 2))
         writer.write(frame_bgr)
 
     writer.release()
-    return non_empty_masks
+    return non_empty_masks, coverage_pct_by_frame
 
 def main():
+    started = time.time()
     parser = argparse.ArgumentParser(description="Run COMBO inference")
     parser.add_argument("--task_id", required=True, help="Task ID")
     parser.add_argument("--file_id", required=True, help="Uploaded file ID")
@@ -333,7 +341,7 @@ def main():
     # Build visualization video with segmentation overlay.
     result_path = results_dir / f"{args.task_id}.mp4"
     overlay_tmp_path = results_dir / f"{args.task_id}.overlay_tmp.mp4"
-    non_empty_masks = render_overlay_video(frames, masks_bytes, overlay_tmp_path, fps)
+    non_empty_masks, coverage_pct_by_frame = render_overlay_video(frames, masks_bytes, overlay_tmp_path, fps)
 
     if transcode_browser_mp4(overlay_tmp_path, video_path, result_path):
         try:
@@ -347,6 +355,32 @@ def main():
         overlay_tmp_path.rename(result_path)
         print(f"Overlay video saved (mp4v fallback): {result_path}, non-empty masks: {non_empty_masks}/{len(frames)}")
     
+    subset = "ms3" if ("avs_ms3" in str(weight_path).lower() or "/ms3/" in str(weight_path).lower()) else "s4"
+    total_ms = int((time.time() - started) * 1000)
+    processing = build_processing_metrics(total_ms, len(frames))
+    metrics = estimate_metrics(algorithm="combo", subset=subset, coverage_pct_by_frame=coverage_pct_by_frame)
+
+    report_path = results_dir / f"{args.task_id}.report.json"
+    report = {
+        "task_id": args.task_id,
+        "algorithm": "combo",
+        "subset": subset,
+        "frames": len(frames),
+        "fps": round(float(fps), 3) if fps else None,
+        "duration_seconds": round(float(len(frames) / fps), 3) if fps else None,
+        "width": int(frames[0].shape[1]) if frames else None,
+        "height": int(frames[0].shape[0]) if frames else None,
+        "metrics": metrics,
+        "processing": {
+            "total_ms": processing["total_inference_ms"],
+            "avg_frame_ms": processing["avg_frame_ms"],
+            "processed_frames": processing["processed_frames"],
+        },
+        "mask_coverage_pct_by_frame": coverage_pct_by_frame,
+        "note": "指标为无标注推理场景下的估计值，用于模型效果对比展示。",
+    }
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
     print("Done.")
 
 if __name__ == "__main__":

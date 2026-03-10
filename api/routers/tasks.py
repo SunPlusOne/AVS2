@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -74,3 +75,15 @@ async def download_masks(task_id: str, settings: Settings = Depends(get_settings
         filename=f"{task_id}.zip",
         headers=_NO_CACHE_HEADERS,
     )
+
+
+@router.get("/tasks/{task_id}/report")
+async def get_task_report(task_id: str, settings: Settings = Depends(get_settings)):
+    path = settings.results_dir / f"{task_id}.report.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="report not found")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        raise HTTPException(status_code=500, detail="report parse failed")
+    return data

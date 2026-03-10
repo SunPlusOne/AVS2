@@ -6,10 +6,12 @@ import type { UploadResponse } from '@/types/contracts'
 
 const emit = defineEmits<{
   (e: 'uploaded', payload: { file: File; res: UploadResponse }): void
+  (e: 'selected', file: File): void
 }>()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const fileRef = ref<File | null>(null)
+const uploadMeta = ref<UploadResponse | null>(null)
 const loading = ref(false)
 const dragover = ref(false)
 
@@ -45,8 +47,33 @@ function applyPickedFile(file: File | undefined | null): boolean {
     return false
   }
   fileRef.value = file
+  uploadMeta.value = null
+  emit('selected', file)
   return true
 }
+
+function formatDuration(seconds?: number): string {
+  if (seconds == null || !Number.isFinite(seconds)) return '未知'
+  const total = Math.max(0, Math.round(seconds))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+const mediaMetaText = computed(() => {
+  const meta = uploadMeta.value
+  if (!meta) return ''
+  const duration = formatDuration(meta.duration_seconds)
+  const resolution = meta.width && meta.height ? `${meta.width}x${meta.height}` : '未知'
+  const fps = meta.fps ? `${meta.fps.toFixed(2)} fps` : '未知'
+  return `时长 ${duration} · 分辨率 ${resolution} · ${fps}`
+})
+
+const sceneHintText = computed(() => {
+  const scene = uploadMeta.value?.recommended_scene
+  if (!scene) return ''
+  return scene === 'multi_source' ? '自动检测建议：多个物体同时发声' : '自动检测建议：单个物体发声'
+})
 
 function openFileDialog() {
   if (loading.value) return
@@ -87,6 +114,7 @@ async function onUpload() {
   loading.value = true
   try {
     const res = await uploadVideo(f)
+    uploadMeta.value = res
     ElMessage.success('上传成功')
     emit('uploaded', { file: f, res })
   } catch (e: any) {
@@ -143,6 +171,12 @@ async function onUpload() {
           <span class="upload-file-name">{{ fileRef.name }}</span>
           <span class="upload-file-size">{{ formatFileSize(fileRef.size) }}</span>
         </div>
+      </div>
+
+      <div v-if="uploadMeta" class="upload-meta-panel">
+        <div class="upload-meta-title">视频信息</div>
+        <div class="upload-meta-line">{{ mediaMetaText }}</div>
+        <div v-if="sceneHintText" class="upload-meta-line">{{ sceneHintText }}</div>
       </div>
 
       <el-button class="avs-btn-primary w-full" :disabled="uploadDisabled" :loading="loading" @click="onUpload">
@@ -249,6 +283,26 @@ async function onUpload() {
 .upload-file-size {
   font-family: var(--font-mono);
   opacity: 0.9;
+}
+
+.upload-meta-panel {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-hover);
+  padding: 10px 12px;
+}
+
+.upload-meta-title {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.upload-meta-line {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
 }
 </style>
 

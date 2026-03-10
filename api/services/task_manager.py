@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import asyncio
 
-from api.schemas.contracts import TaskProgress
+from api.schemas.contracts import TaskMetrics, TaskProgress
 from api.services.ws_manager import WSManager
 from api.utils.logger import log_json
 
@@ -25,10 +25,17 @@ class TaskRuntime:
     file_id: str
     algorithm: str
     scene: Optional[str]
+    resolved_scene: Optional[str]
+    filename: Optional[str]
     status: str
     progress: int
     current_frame: Optional[int]
     total_frames: Optional[int]
+    fps: Optional[float]
+    duration_seconds: Optional[float]
+    width: Optional[int]
+    height: Optional[int]
+    metrics: Optional[TaskMetrics]
     message: Optional[str]
     created_at: datetime
     updated_at: datetime
@@ -37,8 +44,9 @@ class TaskRuntime:
 
 
 class TaskManager:
-    def __init__(self, tasks_dir: Path, ws: WSManager, logger) -> None:
+    def __init__(self, tasks_dir: Path, uploads_dir: Path, ws: WSManager, logger) -> None:
         self._tasks_dir = tasks_dir
+        self._uploads_dir = uploads_dir
         self._ws = ws
         self._logger = logger
         self._tasks: dict[str, TaskRuntime] = {}
@@ -47,17 +55,62 @@ class TaskManager:
     def _task_path(self, task_id: str) -> Path:
         return self._tasks_dir / task_id / "task.json"
 
+    def _upload_meta_path(self, file_id: str) -> Path:
+        return self._uploads_dir / f"{file_id}.meta.json"
+
+    def _guess_filename(self, file_id: str) -> Optional[str]:
+        matches = list(self._uploads_dir.glob(f"{file_id}__*"))
+        if not matches:
+            return None
+        name = matches[0].name
+        sep = "__"
+        if sep in name:
+            return name.split(sep, 1)[1]
+        return matches[0].name
+
+    def _load_upload_meta(self, file_id: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        p = self._upload_meta_path(file_id)
+        if p.exists():
+            try:
+                payload = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                payload = {}
+        if "filename" not in payload:
+            payload["filename"] = self._guess_filename(file_id)
+        return payload
+
     async def create(self, file_id: str, algorithm: str, scene: Optional[str] = None) -> str:
         task_id = uuid.uuid4().hex
+        upload_meta = self._load_upload_meta(file_id)
+        resolved_scene = scene
+        if scene == "auto_detect":
+            resolved_scene = str(upload_meta.get("recommended_scene") or "single_source")
+
+        metrics_payload = upload_meta.get("metrics")
+        parsed_metrics: Optional[TaskMetrics] = None
+        if isinstance(metrics_payload, dict):
+            try:
+                parsed_metrics = TaskMetrics(**metrics_payload)
+            except Exception:
+                parsed_metrics = None
+
         rt = TaskRuntime(
             task_id=task_id,
             file_id=file_id,
             algorithm=algorithm,
             scene=scene,
+            resolved_scene=resolved_scene,
+            filename=upload_meta.get("filename"),
             status="queued",
             progress=0,
             current_frame=None,
-            total_frames=None,
+            total_frames=upload_meta.get("total_frames"),
+            fps=upload_meta.get("fps"),
+            duration_seconds=upload_meta.get("duration_seconds"),
+            width=upload_meta.get("width"),
+            height=upload_meta.get("height"),
+            metrics=parsed_metrics,
             message=None,
             created_at=_now(),
             updated_at=_now(),
@@ -96,6 +149,13 @@ class TaskManager:
                 message=rt.message,
                 algorithm=rt.algorithm,  # type: ignore
                 scene=rt.scene,  # type: ignore
+                resolved_scene=rt.resolved_scene,  # type: ignore
+                filename=rt.filename,
+                fps=rt.fps,
+                duration_seconds=rt.duration_seconds,
+                width=rt.width,
+                height=rt.height,
+                metrics=rt.metrics,
                 created_at=rt.created_at,
                 updated_at=rt.updated_at,
             )
@@ -127,6 +187,12 @@ class TaskManager:
         progress: Optional[int] = None,
         current_frame: Optional[int] = None,
         total_frames: Optional[int] = None,
+        resolved_scene: Optional[str] = None,
+        fps: Optional[float] = None,
+        duration_seconds: Optional[float] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        metrics: Optional[TaskMetrics] = None,
         message: Optional[str] = None,
     ) -> None:
         async with self._lock:
@@ -141,6 +207,18 @@ class TaskManager:
                 rt.current_frame = int(current_frame)
             if total_frames is not None:
                 rt.total_frames = int(total_frames)
+            if resolved_scene is not None:
+                rt.resolved_scene = resolved_scene
+            if fps is not None:
+                rt.fps = float(fps)
+            if duration_seconds is not None:
+                rt.duration_seconds = float(duration_seconds)
+            if width is not None:
+                rt.width = int(width)
+            if height is not None:
+                rt.height = int(height)
+            if metrics is not None:
+                rt.metrics = metrics
             if message is not None:
                 rt.message = message
             rt.updated_at = _now()
@@ -178,6 +256,13 @@ class TaskManager:
             message=rt.message,
             algorithm=rt.algorithm,  # type: ignore
             scene=rt.scene,  # type: ignore
+            resolved_scene=rt.resolved_scene,  # type: ignore
+            filename=rt.filename,
+            fps=rt.fps,
+            duration_seconds=rt.duration_seconds,
+            width=rt.width,
+            height=rt.height,
+            metrics=rt.metrics,
             created_at=rt.created_at,
             updated_at=rt.updated_at,
         ).model_dump(mode="json")
@@ -193,6 +278,13 @@ class TaskManager:
             message=rt.message,
             algorithm=rt.algorithm,  # type: ignore
             scene=rt.scene,  # type: ignore
+            resolved_scene=rt.resolved_scene,  # type: ignore
+            filename=rt.filename,
+            fps=rt.fps,
+            duration_seconds=rt.duration_seconds,
+            width=rt.width,
+            height=rt.height,
+            metrics=rt.metrics,
             created_at=rt.created_at,
             updated_at=rt.updated_at,
         ).model_dump(mode="json")
