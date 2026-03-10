@@ -20,6 +20,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from api.services.metrics_estimator import build_processing_metrics, estimate_metrics
+from api.models.device_utils import (
+    format_runtime_info,
+    get_torch_runtime_info,
+    model_parameter_device,
+    resolve_runtime_device,
+)
 
 try:
     from api.models.avsegformer_adapter import (
@@ -298,6 +304,10 @@ def main() -> None:
         print(f"Error: weight file not found: {weight_path}")
         sys.exit(1)
 
+    runtime_device = resolve_runtime_device()
+    runtime_info = get_torch_runtime_info(runtime_device)
+    print(f"[runtime] {format_runtime_info(runtime_info)}")
+
     config_path, subset, backbone = choose_config_path(
         weight_path=weight_path,
         config_path_arg=args.config_path,
@@ -320,7 +330,15 @@ def main() -> None:
     print(f"Loading AVSegFormer model from {weight_path} with config {config_path}...")
     try:
         adapter = AvSegFormerAdapter(config_path=str(config_path))
-        adapter.load_weights(str(weight_path))
+        adapter.load_weights(str(weight_path), device=runtime_device)
+
+        model_dev = model_parameter_device(adapter.model)
+        print(f"[avsegformer] loaded_model_device={model_dev}")
+        if runtime_device.startswith("cuda") and not model_dev.startswith("cuda"):
+            raise RuntimeError(
+                "AVSegFormer model is not on CUDA after load. "
+                f"expected={runtime_device}, actual={model_dev}"
+            )
     except Exception as exc:
         print(f"Failed to load model: {exc}")
         traceback.print_exc()

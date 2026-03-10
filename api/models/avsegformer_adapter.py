@@ -12,6 +12,14 @@ from mmcv import Config
 from PIL import Image
 from torchvision import transforms
 
+from api.models.device_utils import (
+    ensure_model_on_device,
+    format_runtime_info,
+    get_torch_runtime_info,
+    model_parameter_device,
+    resolve_runtime_device,
+)
+
 
 def _resolve_avsegformer_root() -> Path:
     adapter_path = Path(__file__).resolve()
@@ -51,15 +59,6 @@ if str(AVSEGFORMER_ROOT) not in sys.path:
 from model import build_model
 
 
-def _resolve_device() -> str:
-    forced = os.getenv("AVS_FORCE_DEVICE", "auto").strip().lower()
-    if forced == "cpu":
-        return "cpu"
-    if forced == "cuda" and torch.cuda.is_available():
-        return "cuda"
-    return "cuda" if torch.cuda.is_available() else "cpu"
-
-
 def _looks_like_state_dict(payload: Any) -> bool:
     return isinstance(payload, Mapping) and any(isinstance(v, torch.Tensor) for v in payload.values())
 
@@ -89,9 +88,9 @@ def _normalize_state_dict(payload: Mapping[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def _load_checkpoint_payload(weight_path: str) -> Any:
+def _load_checkpoint_payload(weight_path: str, map_location: str = "cpu") -> Any:
     try:
-        return torch.load(weight_path, map_location="cpu")
+        return torch.load(weight_path, map_location=map_location)
     except Exception as exc:
         raise RuntimeError(
             "Failed to read AVSegFormer checkpoint. The file may be corrupted or incomplete: "
@@ -104,7 +103,7 @@ def detect_backbone_from_checkpoint(weight_path: str) -> str:
     if override in {"pvt2", "res50"}:
         return override
 
-    payload = _load_checkpoint_payload(weight_path)
+    payload = _load_checkpoint_payload(weight_path, map_location="cpu")
     state_dict = _normalize_state_dict(_unwrap_state_dict(payload))
     keys = state_dict.keys()
 
@@ -158,7 +157,7 @@ class AvSegFormerAdapter:
 
         self.cfg = self._setup_cfg(config_path)
         self.model = None
-        self.device = _resolve_device()
+        self.device = resolve_runtime_device()
         self.chunk_size = max(1, int(getattr(self.cfg.model, "T", 5) or 5))
         self._image_transform = transforms.Compose(
             [
@@ -192,10 +191,11 @@ class AvSegFormerAdapter:
         return cfg
 
     def load_weights(self, weight_path: str, device: str | None = None) -> None:
-        if device:
-            self.device = "cuda" if device == "cuda" and torch.cuda.is_available() else "cpu"
+        self.device = resolve_runtime_device(device)
+        runtime = get_torch_runtime_info(self.device)
+        print(f"[avsegformer] runtime: {format_runtime_info(runtime)}")
 
-        checkpoint = _load_checkpoint_payload(weight_path)
+        checkpoint = _load_checkpoint_payload(weight_path, map_location=self.device)
         state_dict = _normalize_state_dict(_unwrap_state_dict(checkpoint))
 
         self.model = build_model(**self.cfg.model)
@@ -213,6 +213,9 @@ class AvSegFormerAdapter:
 
         self.model.to(self.device)
         self.model.eval()
+
+        model_dev = ensure_model_on_device(self.model, self.device)
+        print(f"[avsegformer] model_parameter_device={model_dev}")
 
     def infer(self, frames: list[np.ndarray], audio_feature: np.ndarray) -> Iterable[bytes]:
         if self.model is None:
@@ -241,6 +244,25 @@ class AvSegFormerAdapter:
                 pad = audio_chunk[-1:].repeat(self.chunk_size - audio_chunk.shape[0], 1, 1, 1)
                 audio_chunk = torch.cat([audio_chunk, pad], dim=0)
             audio_chunk = audio_chunk.to(self.device)
+
+            if start == 0:
+                expected_prefix = "cuda" if self.device.startswith("cuda") else "cpu"
+                model_dev = model_parameter_device(self.model)
+                image_dev = str(images_tensor.device)
+                audio_dev = str(audio_chunk.device)
+                print(
+                    "[avsegformer] first_batch_devices: "
+                    f"model={model_dev}, images={image_dev}, audio={audio_dev}"
+                )
+                if (
+                    not model_dev.startswith(expected_prefix)
+                    or not image_dev.startswith(expected_prefix)
+                    or not audio_dev.startswith(expected_prefix)
+                ):
+                    raise RuntimeError(
+                        "Device mismatch before AVSegFormer inference: "
+                        f"expected={self.device}, model={model_dev}, images={image_dev}, audio={audio_dev}"
+                    )
 
             with torch.no_grad():
                 pred_mask, _ = self.model(audio_chunk, images_tensor)

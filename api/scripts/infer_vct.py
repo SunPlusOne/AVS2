@@ -19,6 +19,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from api.services.metrics_estimator import build_processing_metrics, estimate_metrics
+from api.models.device_utils import (
+    format_runtime_info,
+    get_torch_runtime_info,
+    model_parameter_device,
+    resolve_runtime_device,
+)
 
 # Import adapter (this script runs in the correct Conda env, so imports should work)
 try:
@@ -294,6 +300,10 @@ def main():
         print(f"Error: weight file not found: {weight_path}")
         sys.exit(1)
 
+    runtime_device = resolve_runtime_device()
+    runtime_info = get_torch_runtime_info(runtime_device)
+    print(f"[runtime] {format_runtime_info(runtime_info)}")
+
     config_path = choose_config_path(weight_path=weight_path, config_path_arg=args.config_path, subset_arg=args.subset)
     if not config_path.exists():
         print(f"Error: VCT config not found: {config_path}")
@@ -312,7 +322,15 @@ def main():
     print(f"Loading VCT model from {weight_path} with config {config_path}...")
     try:
         adapter = VctAdapter(config_path=str(config_path))
-        adapter.load_weights(str(weight_path))
+        adapter.load_weights(str(weight_path), device=runtime_device)
+
+        model_dev = model_parameter_device(adapter.model)
+        print(f"[vct] loaded_model_device={model_dev}")
+        if runtime_device.startswith("cuda") and not model_dev.startswith("cuda"):
+            raise RuntimeError(
+                "VCT model is not on CUDA after load. "
+                f"expected={runtime_device}, actual={model_dev}"
+            )
     except Exception as e:
         print(f"Failed to load model: {e}")
         traceback.print_exc()

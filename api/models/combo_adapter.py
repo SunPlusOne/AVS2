@@ -15,6 +15,14 @@ from detectron2.data import MetadataCatalog
 from detectron2.projects.deeplab import add_deeplab_config
 from PIL import Image
 
+from api.models.device_utils import (
+    ensure_model_on_device,
+    format_runtime_info,
+    get_torch_runtime_info,
+    model_parameter_device,
+    resolve_runtime_device,
+)
+
 
 def _resolve_combo_root() -> Path:
     adapter_path = Path(__file__).resolve()
@@ -69,7 +77,7 @@ class ComboAdapter:
         
         self.cfg = self._setup_cfg(config_path)
         self.model = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = resolve_runtime_device()
 
     def _setup_cfg(self, config_path: str):
         cfg = get_cfg()
@@ -119,16 +127,25 @@ class ComboAdapter:
         return cfg
 
     def load_weights(self, weight_path: str, device: str = None):
-        if device:
-            self.device = device
-            # Note: cfg.MODEL.DEVICE is frozen, so we might need to rely on model.to(device)
-        
+        self.device = resolve_runtime_device(device)
+        runtime = get_torch_runtime_info(self.device)
+        print(f"[combo] runtime: {format_runtime_info(runtime)}")
+
+        # Keep detectron2 internal device flag aligned with runtime selection.
+        self.cfg.defrost()
+        self.cfg.MODEL.DEVICE = self.device
+        self.cfg.freeze()
+
         self.model = Trainer.build_model(self.cfg)
         self.model.eval()
-        
+
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(weight_path)
         self.model.to(self.device)
+        self.model.eval()
+
+        model_dev = ensure_model_on_device(self.model, self.device)
+        print(f"[combo] model_parameter_device={model_dev}")
 
     def infer(self, frames: List[np.ndarray], audio_feature: np.ndarray) -> Iterable[bytes]:
         """
@@ -194,6 +211,25 @@ class ComboAdapter:
             }
             if use_pre_sam:
                 batch_input["pre_masks"] = torch.stack(pre_mask_tensors, dim=0).to(self.device)
+
+            if i == 0:
+                expected_prefix = "cuda" if self.device.startswith("cuda") else "cpu"
+                model_dev = model_parameter_device(self.model)
+                image_dev = str(batch_input["images"].device)
+                audio_dev = str(batch_input["audio_log_mel"].device)
+                print(
+                    "[combo] first_batch_devices: "
+                    f"model={model_dev}, images={image_dev}, audio={audio_dev}"
+                )
+                if (
+                    not model_dev.startswith(expected_prefix)
+                    or not image_dev.startswith(expected_prefix)
+                    or not audio_dev.startswith(expected_prefix)
+                ):
+                    raise RuntimeError(
+                        "Device mismatch before COMBO inference: "
+                        f"expected={self.device}, model={model_dev}, images={image_dev}, audio={audio_dev}"
+                    )
 
             with torch.no_grad():
                 outputs = self.model([batch_input])
