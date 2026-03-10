@@ -48,3 +48,4 @@ Thumbs.db
 
 # Runtime
 .backend_uvicorn.pid
+.frontend_vite.pid
