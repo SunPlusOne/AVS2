@@ -107,10 +107,11 @@ class TaskRunner:
         if algorithm == "combo":
             combo_root = os.getenv("AVS_COMBO_ROOT", "").strip() or "/root/autodl-tmp/COMBO-AVS"
             if subset == "s4":
+                # Prefer PVTV2-B5 checkpoints for S4 when both backbones are available.
+                add(str(Path(combo_root) / "checkpoints" / "avs_s4" / "COMBO_PVTV2B5_bs8_80k" / "model_best.pth"))
                 add("/root/autodl-tmp/S4_res50.pth")
                 add("/root/S4_res50.pth")
                 add(str(Path(combo_root) / "checkpoints" / "avs_s4" / "COMBO_R50_bs8_80k" / "model_best.pth"))
-                add(str(Path(combo_root) / "checkpoints" / "avs_s4" / "COMBO_PVTV2B5_bs8_80k" / "model_best.pth"))
                 add(str(Path(combo_root) / "checkpoints" / "avs_s4_old" / "COMBO_R50_bs8_80k" / "model_best.pth"))
             elif subset == "ms3":
                 add(str(Path(combo_root) / "checkpoints" / "avs_ms3" / "COMBO_R50_bs8_20k" / "model_best.pth"))

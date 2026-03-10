@@ -19,7 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import adapter (this script runs in the correct Conda env, so imports should work)
 try:
-    from api.models.combo_adapter import ComboAdapter
+    from api.models.combo_adapter import COMBO_ROOT, ComboAdapter
 except Exception as e:
     print(f"Error importing ComboAdapter: {e}")
     traceback.print_exc()
@@ -153,6 +153,32 @@ def build_audio_feature(video_path: str, num_frames: int) -> np.ndarray:
                 pass
 
 
+def choose_combo_config(weight_path: Path) -> Path:
+    weight_lower = str(weight_path).lower()
+    use_ms3 = "avs_ms3" in weight_lower or "/ms3/" in weight_lower
+    use_pvt = "pvt" in weight_lower
+
+    if use_ms3:
+        config_name = "COMBO_PVTV2B5_bs8_20k.yaml" if use_pvt else "COMBO_R50_bs8_20k.yaml"
+        config_path = COMBO_ROOT / "configs" / "avs_ms3" / config_name
+    else:
+        config_name = "COMBO_PVTV2B5_bs8_90k.yaml" if use_pvt else "COMBO_R50_bs8_90k.yaml"
+        config_path = COMBO_ROOT / "configs" / "avs_s4" / config_name
+
+    if config_path.is_file():
+        return config_path
+
+    fallback = COMBO_ROOT / "configs" / "avs_s4" / "COMBO_R50_bs8_90k.yaml"
+    if fallback.is_file():
+        print(f"Warning: config not found for {weight_path}, fallback to {fallback}")
+        return fallback
+
+    raise FileNotFoundError(
+        f"No valid COMBO config found for weight: {weight_path}. "
+        f"Expected: {config_path}"
+    )
+
+
 def transcode_browser_mp4(overlay_mp4: Path, source_video: str, out_mp4: Path) -> bool:
     ffmpeg_bin = resolve_ffmpeg_exe()
     if not ffmpeg_bin:
@@ -270,7 +296,9 @@ def main():
     
     print(f"Loading model from {weight_path}...")
     try:
-        adapter = ComboAdapter()
+        config_path = choose_combo_config(weight_path)
+        print(f"Using COMBO config: {config_path}")
+        adapter = ComboAdapter(config_path=str(config_path))
         adapter.load_weights(str(weight_path))
     except Exception as e:
         print(f"Failed to load model: {e}")
