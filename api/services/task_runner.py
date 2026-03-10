@@ -80,14 +80,14 @@ class TaskRunner:
             add(os.getenv(f"AVS_WEIGHT_{algorithm.upper()}", ""))
         add(os.getenv("AVS_WEIGHT_PATH", ""))
 
-        # Metadata path from algorithms.json.
-        if not has_scene:
-            add(meta_weight_path)
-            if meta_weight_path:
-                basename = Path(meta_weight_path.replace("\\", "/")).name
-                if basename:
-                    add(str(settings.models_dir / algorithm / version / basename))
-                    add(str(settings.models_dir / algorithm / "v0" / basename))
+        # Metadata path from algorithms.json should remain a fallback even when
+        # scene selection is enabled, because admin uploads are persisted there.
+        add(meta_weight_path)
+        if meta_weight_path:
+            basename = Path(meta_weight_path.replace("\\", "/")).name
+            if basename:
+                add(str(settings.models_dir / algorithm / version / basename))
+                add(str(settings.models_dir / algorithm / "v0" / basename))
 
         # Conventional local locations.
         if subset == "s4":
@@ -129,6 +129,22 @@ class TaskRunner:
                 add(str(Path(vct_root) / "output" / "ms3_swinb_384" / "model_best.pth"))
                 add("/root/autodl-tmp/VCT_AVS/output/ms3_swinb_384/model_best.pth")
                 add("/root/VCT_AVS/output/ms3_swinb_384/model_best.pth")
+        elif algorithm == "avsegformer":
+            project_root = Path(__file__).resolve().parent.parent.parent
+            avsegformer_root = os.getenv("AVS_AVSEGFORMER_ROOT", "").strip()
+            avsegformer_root = avsegformer_root or str(project_root / "api" / "third_party" / "AVSegFormer")
+            if subset == "s4":
+                add(str(settings.models_dir / algorithm / version / "S4_best.pth"))
+                add(str(settings.models_dir / algorithm / "builtin" / "S4_best.pth"))
+                add(str(settings.models_dir / algorithm / subset / "S4_best.pth"))
+                add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_pvt2_s4" / "S4_best.pth"))
+                add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_res50_s4" / "S4_best.pth"))
+            elif subset == "ms3":
+                add(str(settings.models_dir / algorithm / version / "MS3_best.pth"))
+                add(str(settings.models_dir / algorithm / "builtin" / "MS3_best.pth"))
+                add(str(settings.models_dir / algorithm / subset / "MS3_best.pth"))
+                add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_pvt2_ms3" / "MS3_best.pth"))
+                add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_res50_ms3" / "MS3_best.pth"))
 
         algo_model_dir = settings.models_dir / algorithm
         if algo_model_dir.exists():
@@ -254,7 +270,7 @@ class TaskRunner:
             
             should_use_remote = bool(settings.remote_inference_url)
             has_local_weight = bool(weight_path) and os.path.isfile(weight_path)
-            supports_local_inference = algorithm in {"combo", "vct"}
+            supports_local_inference = algorithm in {"combo", "vct", "avsegformer"}
             
             if should_use_remote:
                 await self._manager.update(task_id, message=f"正在请求远程推理 ({algorithm})...")

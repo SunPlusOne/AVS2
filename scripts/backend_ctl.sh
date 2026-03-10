@@ -32,18 +32,26 @@ init_runtime() {
 }
 
 detect_python() {
-  local env_combo="${AVS_ENV_COMBO:-}"
+  local env_candidates=(
+    "${AVS_ENV_COMBO:-}"
+    "${AVS_ENV_AVSEGFORMER:-}"
+    "${AVS_ENV_VCT:-}"
+  )
+  local env_path=""
 
-  if [[ -n "$env_combo" ]]; then
-    if [[ -x "$env_combo/bin/python" ]]; then
-      echo "$env_combo/bin/python"
+  for env_path in "${env_candidates[@]}"; do
+    if [[ -z "$env_path" ]]; then
+      continue
+    fi
+    if [[ -x "$env_path/bin/python" ]]; then
+      echo "$env_path/bin/python"
       return 0
     fi
-    if [[ -x "$env_combo" ]]; then
-      echo "$env_combo"
+    if [[ -x "$env_path" ]]; then
+      echo "$env_path"
       return 0
     fi
-  fi
+  done
 
   if command -v python >/dev/null 2>&1; then
     command -v python
@@ -55,7 +63,7 @@ detect_python() {
     return 0
   fi
 
-  echo "[ERROR] Python not found. Install Python or set AVS_ENV_COMBO in .env." >&2
+  echo "[ERROR] Python not found. Install Python or set AVS_ENV_COMBO / AVS_ENV_AVSEGFORMER / AVS_ENV_VCT in .env." >&2
   return 1
 }
 

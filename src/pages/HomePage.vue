@@ -28,7 +28,9 @@ const wsRef = ref<WebSocket | null>(null)
 let pollTimer: number | null = null
 
 const canStart = computed(() => !!uploaded.value && !starting.value)
-const needsSceneSelection = computed(() => selectedAlgorithm.value === 'combo' || selectedAlgorithm.value === 'vct')
+const needsSceneSelection = computed(
+  () => selectedAlgorithm.value === 'combo' || selectedAlgorithm.value === 'vct' || selectedAlgorithm.value === 'avsegformer',
+)
 
 function onUploaded(payload: { file: File; res: UploadResponse }) {
   uploaded.value = payload.res
@@ -196,11 +198,11 @@ onBeforeUnmount(() => {
 
       <div class="avs-card w-full">
         <div class="flex items-center gap-2">
-          <span class="avs-badge-inline">VCT / COMBO 已接入</span>
+          <span class="avs-badge-inline">AVSegFormer / VCT / COMBO 已接入</span>
           <div class="avs-note-title">说明</div>
         </div>
         <div class="mt-1 avs-note-desc">
-          当前支持 VCT 和 COMBO。系统会根据“使用场景”自动选择对应权重。
+          当前支持 AVSegFormer、VCT 和 COMBO 的本地推理。系统会根据“使用场景”自动选择对应权重。
           语义分割权重（AVSS）暂不在本页面开放。
         </div>
       </div>

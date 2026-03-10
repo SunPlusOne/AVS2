@@ -10,8 +10,8 @@ DEFAULT_ALGORITHMS: list[dict[str, Any]] = [
         "id": "avsegformer",
         "name": "AVSegFormer",
         "version": "builtin",
-        "description": "基于 Transformer 的视听分割算法（占位权重）。",
-        "input_size": "384x384",
+        "description": "基于 Transformer 的视听分割算法，支持 S4/MS3 本地推理。",
+        "input_size": "512x512",
         "enabled": True,
     },
     {

@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 venv/
 .venv/
+.venv-avsegformer/
 api/venv/
 api/.venv/
 .conda/
@@ -36,6 +37,10 @@ api/data/models/**/*.chkpt
 # Third party (if they are submodules, ignore them; if integrated code, keep them)
 # But typically we ignore large checkouts if they are just dependencies
 # api/third_party/COMBO-AVS
+api/third_party/AVSegFormer/ops/build/
+api/third_party/AVSegFormer/ops/dist/
+api/third_party/AVSegFormer/ops/*.egg-info/
+api/third_party/AVSegFormer/pretrained/**/*.pth
 
 # OS
 .DS_Store

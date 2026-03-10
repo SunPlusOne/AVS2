@@ -2,11 +2,10 @@
   {
     "id": "avsegformer",
     "name": "AVSegFormer",
-    "version": "v0",
-    "description": "占位权重，待上传训练后模型",
-    "input_size": "384x384",
-    "enabled": true,
-    "weight_path": "C:\\Users\\admin\\Desktop\\AVS2\\api\\data\\models\\avsegformer\\v0\\S4_res50.pth"
+    "version": "builtin",
+    "description": "基于 Transformer 的视听分割算法，支持 S4/MS3 本地推理。",
+    "input_size": "512x512",
+    "enabled": true
   },
   {
     "id": "vct",

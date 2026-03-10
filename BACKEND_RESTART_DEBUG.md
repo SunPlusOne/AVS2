@@ -77,7 +77,7 @@ ss -ltnp | grep ':8000 ' || true
 
 现象：脚本提示找不到 Python 或依赖报错。
 
-处理：检查 `.env` 中 `AVS_ENV_COMBO` 是否正确。
+处理：检查 `.env` 中 `AVS_ENV_COMBO`、`AVS_ENV_AVSEGFORMER` 或 `AVS_ENV_VCT` 是否正确。
 
 你当前推荐值：
 
@@ -116,7 +116,43 @@ AVS_COMBO_ROOT=/root/autodl-tmp/COMBO-AVS
 
 然后重启后端。
 
-### 4.5 VCT 本地推理配置
+### 4.5 AVSegFormer 本地推理配置
+
+现象：任务失败，提示 `Conda environment for avsegformer is not configured`、`AVSegFormer source not found`、`VGGish pretrained weight not found` 或 `weight file not found`。
+
+处理：先在项目根目录执行一次环境安装脚本：
+
+```bash
+cd /root/AVS2
+chmod +x scripts/setup_avsegformer_env.sh
+./scripts/setup_avsegformer_env.sh
+```
+
+然后在 `.env` 增加以下配置（按你的实际路径调整）：
+
+```ini
+AVS_ENV_AVSEGFORMER=/root/AVS2/.venv-avsegformer
+AVS_AVSEGFORMER_ROOT=/root/AVS2/api/third_party/AVSegFormer
+AVS_AVSEGFORMER_VGGISH=/root/autodl-tmp/COMBO-AVS/pretrained/vggish-10086976.pth
+# AVS_WEIGHT_AVSEGFORMER_S4=/root/AVS2/api/data/models/avsegformer/s4/S4_best.pth
+# AVS_WEIGHT_AVSEGFORMER_MS3=/root/AVS2/api/data/models/avsegformer/ms3/MS3_best.pth
+```
+
+说明：
+
+- `AVS_WEIGHT_AVSEGFORMER_S4` 对应单个物体发声场景。
+- `AVS_WEIGHT_AVSEGFORMER_MS3` 对应多个物体同时发声场景。
+- 适配器会自动从 checkpoint 判断 `pvt2/res50`，不需要手工指定 backbone。
+- 如果你已经把官方 checkpoint 上传到后台，`algorithms.json` 里的上传路径也会作为回退候选。
+
+改完后重启后端：
+
+```bash
+cd /root/AVS2
+./scripts/backend_ctl.sh restart
+```
+
+### 4.6 VCT 本地推理配置
 
 现象：任务失败，提示 `Conda environment for vct is not configured`、`VCT_AVS source not found` 或 `weight file not found`。
 
@@ -130,7 +166,7 @@ AVS_WEIGHT_VCT=/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth
 
 如果你要切换 `ms3/ss`，把 `AVS_WEIGHT_VCT` 改为对应 `model_best.pth` 路径后重启后端。
 
-### 4.6 任务成功但分割视频播放失败
+### 4.7 任务成功但分割视频播放失败
 
 现象：任务状态是 `completed`，但前端播放不了结果视频。
 
@@ -149,7 +185,7 @@ cd /root/AVS2
 ./scripts/backend_ctl.sh restart
 ```
 
-### 4.7 场景选择与权重映射（VCT/COMBO）
+### 4.8 场景选择与权重映射（AVSegFormer/VCT/COMBO）
 
 前端现在会让用户选择“使用场景”，后端会按场景自动选择权重：
 
@@ -159,6 +195,8 @@ cd /root/AVS2
 推荐在 `.env` 显式配置场景权重：
 
 ```ini
+AVS_WEIGHT_AVSEGFORMER_S4=/root/AVS2/api/data/models/avsegformer/s4/S4_best.pth
+AVS_WEIGHT_AVSEGFORMER_MS3=/root/AVS2/api/data/models/avsegformer/ms3/MS3_best.pth
 AVS_WEIGHT_COMBO_S4=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth
 AVS_WEIGHT_COMBO_MS3=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_ms3/COMBO_R50_bs8_20k/model_best.pth
 AVS_WEIGHT_VCT_S4=/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth

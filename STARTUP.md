@@ -45,6 +45,33 @@ python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 - **API 文档**: http://127.0.0.1:8000/docs
 - **健康检查**: http://127.0.0.1:8000/api/health
 
+### 2.5 AVSegFormer 专用环境与权重
+
+仓库已经内置 AVSegFormer 源码到 `api/third_party/AVSegFormer`。在 Linux/AutoDL 上推荐直接执行：
+
+```bash
+cd /root/AVS2
+chmod +x scripts/setup_avsegformer_env.sh
+./scripts/setup_avsegformer_env.sh
+```
+
+然后在项目根目录 `.env` 中补充：
+
+```ini
+AVS_ENV_AVSEGFORMER=/root/AVS2/.venv-avsegformer
+AVS_AVSEGFORMER_ROOT=/root/AVS2/api/third_party/AVSegFormer
+AVS_AVSEGFORMER_VGGISH=/root/autodl-tmp/COMBO-AVS/pretrained/vggish-10086976.pth
+# AVS_WEIGHT_AVSEGFORMER_S4=/root/AVS2/api/data/models/avsegformer/s4/S4_best.pth
+# AVS_WEIGHT_AVSEGFORMER_MS3=/root/AVS2/api/data/models/avsegformer/ms3/MS3_best.pth
+```
+
+说明：
+
+- `AVS_WEIGHT_AVSEGFORMER_S4` 用于单个物体发声场景。
+- `AVS_WEIGHT_AVSEGFORMER_MS3` 用于多个物体同时发声场景。
+- 适配器会自动判断 checkpoint 属于 `pvt2` 还是 `res50`，无需额外指定。
+- 如果你通过管理员后台上传 AVSegFormer 权重，后台保存的 `weight_path` 也会自动进入本地权重回退链路。
+
 ---
 
 ## 3. 前端启动 (Vue 3)
@@ -80,7 +107,8 @@ npm.cmd run dev
 1. 登录后进入 **模型权重管理**。
 2. 选择算法 (如 `avsegformer`) 和版本 (如 `v0`)。
 3. 上传你的 `.pth` 权重文件。
-4. 上传成功后，普通用户即可在首页选择该算法进行推理。
+4. 如果该算法需要场景路由（AVSegFormer / VCT / COMBO），首页还需要选择“单个物体发声”或“多个物体同时发声”。
+5. 上传成功后，普通用户即可在首页选择该算法进行推理。
 
 ---
 
@@ -93,7 +121,7 @@ npm.cmd run dev
 ### Q2: 任务一直显示 "Queued" 或进度不更新
 - 检查 WebSocket 连接是否成功 (F12 -> Network -> WS)。
 - 后端控制台是否有报错日志。
-- 当前版本为 **占位推理**，进度是模拟生成的；若需真实推理，请替换 `api/services/inference_service.py` 中的逻辑。
+- AVSegFormer、VCT、COMBO 已接入本地推理；如果任务失败，优先检查 `.env` 中对应的 `AVS_ENV_*`、代码根目录和权重路径是否存在。
 
 ### Q3: `npm` 报错 "无法加载文件...npm.ps1"
 - 请使用 `npm.cmd` 代替 `npm`，或在 PowerShell 中运行 `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` 解除限制。

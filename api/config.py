@@ -45,7 +45,7 @@ class Settings:
     admin_password: str
     admin_jwt_secret: str
     admin_jwt_issuer: str
-    # Conda env paths (local inference)
+    # Python environment paths (local inference)
     env_combo: str
     env_avsegformer: str
     env_vct: str
@@ -76,7 +76,7 @@ def get_settings() -> Settings:
     admin_jwt_secret = os.getenv("AVS_ADMIN_JWT_SECRET", "dev-secret-change")
     admin_jwt_issuer = os.getenv("AVS_ADMIN_JWT_ISS", "avs-system")
 
-    # Conda environments
+    # Python environments
     env_combo = os.getenv("AVS_ENV_COMBO", "")
     env_avsegformer = os.getenv("AVS_ENV_AVSEGFORMER", "")
     env_vct = os.getenv("AVS_ENV_VCT", "")

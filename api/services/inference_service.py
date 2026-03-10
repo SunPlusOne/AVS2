@@ -200,7 +200,7 @@ class InferenceService:
         weight_path: str,
         subset: str = "",
     ) -> dict[str, str]:
-        """Runs real inference via subprocess in specific Conda environment"""
+        """Runs real inference via subprocess in a dedicated Python environment"""
         settings = get_settings()
         project_root = Path(__file__).resolve().parent.parent.parent
         timeout_raw = os.getenv("AVS_INFER_TIMEOUT_SEC", "1800").strip()
@@ -226,6 +226,9 @@ class InferenceService:
         if algorithm == "combo":
             env_path = settings.env_combo
             script_path = "api/scripts/infer_combo.py"
+        elif algorithm == "avsegformer":
+            env_path = settings.env_avsegformer
+            script_path = "api/scripts/infer_avsegformer.py"
         elif algorithm == "vct":
             env_path = settings.env_vct
             script_path = "api/scripts/infer_vct.py"
@@ -233,7 +236,7 @@ class InferenceService:
         # elif algorithm == "avsegformer": ...
         
         if not env_path:
-            raise ValueError(f"Conda environment for {algorithm} is not configured (AVS_ENV_{algorithm.upper()})")
+            raise ValueError(f"Python environment for {algorithm} is not configured (AVS_ENV_{algorithm.upper()})")
 
         # AVS_ENV_* can be:
         # 1) an env root dir, 2) a direct python executable path, or 3) a command on PATH.
@@ -265,7 +268,7 @@ class InferenceService:
             "--results_dir", str(self._results_dir),
             "--masks_dir", str(self._masks_dir),
         ]
-        if algorithm == "vct" and subset:
+        if algorithm in {"vct", "avsegformer"} and subset:
             cmd.extend(["--subset", subset])
         
         self._logger.info(f"Starting subprocess (timeout={infer_timeout_sec}s): {' '.join(cmd)}")
