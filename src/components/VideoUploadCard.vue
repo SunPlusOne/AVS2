@@ -52,8 +52,11 @@ function applyPickedFile(file: File | undefined | null): boolean {
   return true
 }
 
-function formatDuration(seconds?: number): string {
-  if (seconds == null || !Number.isFinite(seconds)) return '未知'
+function hasValidNumber(value?: number): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+function formatDuration(seconds: number): string {
   const total = Math.max(0, Math.round(seconds))
   const m = Math.floor(total / 60)
   const s = total % 60
@@ -63,10 +66,17 @@ function formatDuration(seconds?: number): string {
 const mediaMetaText = computed(() => {
   const meta = uploadMeta.value
   if (!meta) return ''
-  const duration = formatDuration(meta.duration_seconds)
-  const resolution = meta.width && meta.height ? `${meta.width}x${meta.height}` : '未知'
-  const fps = meta.fps ? `${meta.fps.toFixed(2)} fps` : '未知'
-  return `时长 ${duration} · 分辨率 ${resolution} · ${fps}`
+  const parts: string[] = []
+  if (hasValidNumber(meta.duration_seconds)) {
+    parts.push(`时长 ${formatDuration(meta.duration_seconds)}`)
+  }
+  if (hasValidNumber(meta.width) && hasValidNumber(meta.height)) {
+    parts.push(`分辨率 ${Math.round(meta.width)}x${Math.round(meta.height)}`)
+  }
+  if (hasValidNumber(meta.fps)) {
+    parts.push(`${meta.fps.toFixed(2)} fps`)
+  }
+  return parts.join(' · ')
 })
 
 const sceneHintText = computed(() => {
@@ -74,6 +84,8 @@ const sceneHintText = computed(() => {
   if (!scene) return ''
   return scene === 'multi_source' ? '自动检测建议：多个物体同时发声' : '自动检测建议：单个物体发声'
 })
+
+const showMetaPanel = computed(() => Boolean(mediaMetaText.value))
 
 function openFileDialog() {
   if (loading.value) return
@@ -173,7 +185,7 @@ async function onUpload() {
         </div>
       </div>
 
-      <div v-if="uploadMeta" class="upload-meta-panel">
+      <div v-if="showMetaPanel" class="upload-meta-panel">
         <div class="upload-meta-title">视频信息</div>
         <div class="upload-meta-line">{{ mediaMetaText }}</div>
         <div v-if="sceneHintText" class="upload-meta-line">{{ sceneHintText }}</div>
