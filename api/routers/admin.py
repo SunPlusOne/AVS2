@@ -1,32 +1,41 @@
 from __future__ import annotations
 
-import json
 from typing import List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from api.config import Settings
-from api.deps import get_algorithms_repo, get_settings
+from api.deps import get_algorithms_repo, get_logs_repo, get_settings, get_users_repo
 from api.schemas.contracts import AdminLoginRequest, AdminLoginResponse, LogEntry
 from api.services.algorithms_repo import AlgorithmsRepo
-from api.services.auth import admin_guard, issue_admin_jwt
+from api.services.logs_repo import LogsRepo
+from api.services.auth import admin_guard, issue_jwt
+from api.services.users_repo import UsersRepo
 
 
 router = APIRouter()
 
 
 @router.post("/admin/login", response_model=AdminLoginResponse)
-async def admin_login(body: AdminLoginRequest, settings: Settings = Depends(get_settings)):
-    if body.username != settings.admin_username or body.password != settings.admin_password:
+async def admin_login(
+    body: AdminLoginRequest,
+    settings: Settings = Depends(get_settings),
+    users_repo: UsersRepo = Depends(get_users_repo),
+):
+    profile = users_repo.verify_user(body.username, body.password, role="admin")
+    if not profile:
         raise HTTPException(status_code=401, detail="invalid password")
-    token, expires_at = issue_admin_jwt(settings)
+    token, expires_at = issue_jwt(settings, profile["username"], "admin")
     return AdminLoginResponse(token=token, expires_at=expires_at, role="admin")
 
 
 @router.post("/admin/models")
 async def upload_model(
+    request: Request,
     settings: Settings = Depends(get_settings),
     repo: AlgorithmsRepo = Depends(get_algorithms_repo),
+    users_repo: UsersRepo = Depends(get_users_repo),
+    logs_repo: LogsRepo = Depends(get_logs_repo),
     ok=Depends(admin_guard),
     algorithm_id: str = Form(...),
     name: str = Form(...),
@@ -49,6 +58,9 @@ async def upload_model(
                 break
             f.write(chunk)
 
+    actor = users_repo.get_by_username(str(ok.get("username", "")))
+    actor_id = int(actor["id"]) if actor and actor.get("id") else None
+
     repo.upsert(
         {
             "id": algorithm_id,
@@ -58,7 +70,14 @@ async def upload_model(
             "input_size": input_size,
             "enabled": enabled.lower() == "true",
             "weight_path": str(save_path),
-        }
+        },
+        uploaded_by=actor_id,
+    )
+
+    logs_repo.add(
+        user_id=actor_id,
+        action=f"上传模型 {name}-{version}",
+        ip=request.client.host if request.client else None,
     )
 
     return {"ok": True}
@@ -66,25 +85,9 @@ async def upload_model(
 
 @router.get("/admin/logs", response_model=List[LogEntry])
 async def get_logs(
-    settings: Settings = Depends(get_settings),
+    repo: LogsRepo = Depends(get_logs_repo),
     ok=Depends(admin_guard),
     limit: int = 200,
 ):
-    limit = max(1, min(limit, 1000))
-    log_path = settings.logs_dir / "app.log"
-    if not log_path.exists():
-        return []
-
-    lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()[-limit:]
-    out: List[LogEntry] = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            obj = json.loads(line)
-            if isinstance(obj, dict):
-                out.append(LogEntry(ts=str(obj.get("ts", "")), level=str(obj.get("level", "INFO")), message=str(obj.get("message", ""))))
-        except Exception:
-            continue
-    return out
+    rows = repo.list_latest(limit=limit)
+    return [LogEntry(ts=r["ts"], level=r["level"], message=r["message"]) for r in rows]

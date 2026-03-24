@@ -47,6 +47,8 @@ class Settings:
     admin_username: str
     admin_jwt_secret: str
     admin_jwt_issuer: str
+    database_url: str
+    database_path: Path
     # Python environment paths (local inference)
     env_combo: str
     env_avsegformer: str
@@ -78,6 +80,8 @@ def get_settings() -> Settings:
     admin_username = os.getenv("AVS_ADMIN_USERNAME", "admin")
     admin_jwt_secret = os.getenv("AVS_ADMIN_JWT_SECRET", "dev-secret-change")
     admin_jwt_issuer = os.getenv("AVS_ADMIN_JWT_ISS", "avs-system")
+    database_path = Path(os.getenv("AVS_DB_PATH", "/root/autodl-tmp/avs.db")).resolve()
+    database_url = os.getenv("AVS_DATABASE_URL", f"sqlite:///{database_path}")
     users_file = data_dir / "users.json"
 
     # Python environments
@@ -103,6 +107,8 @@ def get_settings() -> Settings:
         admin_username=admin_username,
         admin_jwt_secret=admin_jwt_secret,
         admin_jwt_issuer=admin_jwt_issuer,
+        database_url=database_url,
+        database_path=database_path,
         env_combo=env_combo,
         env_avsegformer=env_avsegformer,
         env_vct=env_vct,

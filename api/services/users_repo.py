@@ -1,89 +1,112 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
-import json
-import secrets
-from pathlib import Path
-from threading import RLock
-from typing import Any, Dict, Optional
+from typing import Optional
 
+import bcrypt
+from sqlalchemy import select
 
-def _hash_password(password: str, salt: str) -> str:
-    raw = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000)
-    return raw.hex()
+from api.database import User, db_session_context, init_database, utcnow
 
 
 class UsersRepo:
-    def __init__(self, users_file: Path):
-        self.users_file = users_file
-        self._lock = RLock()
+    def __init__(self, users_file=None):
+        # Keep constructor signature compatible with existing wiring.
+        self._users_file = users_file
 
     def ensure(self) -> None:
-        self.users_file.parent.mkdir(parents=True, exist_ok=True)
-        if self.users_file.exists():
+        init_database()
+
+    def ensure_admin(self, *, username: str, password: str) -> None:
+        clean_username = username.strip()
+        if not clean_username:
             return
-        self.users_file.write_text("[]\n", encoding="utf-8")
-
-    def _read_all(self) -> list[Dict[str, Any]]:
         self.ensure()
-        try:
-            data = json.loads(self.users_file.read_text(encoding="utf-8"))
-            if isinstance(data, list):
-                return [x for x in data if isinstance(x, dict)]
-        except Exception:
-            pass
-        return []
-
-    def _write_all(self, users: list[Dict[str, Any]]) -> None:
-        self.users_file.write_text(json.dumps(users, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        with db_session_context() as db:
+            user = db.execute(select(User).where(User.username == clean_username)).scalar_one_or_none()
+            if user is None:
+                user = User(
+                    username=clean_username,
+                    password_hash=self._hash_password(password),
+                    role="admin",
+                    created_at=utcnow(),
+                    last_login=None,
+                )
+                db.add(user)
+                return
+            if user.role != "admin":
+                user.role = "admin"
 
     def exists(self, username: str) -> bool:
-        target = username.strip()
-        if not target:
+        clean_username = username.strip()
+        if not clean_username:
             return False
-        with self._lock:
-            return any(str(u.get("username", "")) == target for u in self._read_all())
+        self.ensure()
+        with db_session_context() as db:
+            user = db.execute(select(User.id).where(User.username == clean_username)).scalar_one_or_none()
+            return user is not None
 
-    def create_user(self, username: str, password: str) -> None:
+    def create_user(self, username: str, password: str, role: str = "user") -> None:
         clean_username = username.strip()
         if not clean_username:
             raise ValueError("username required")
         if len(password) < 6:
             raise ValueError("password too short")
+        if role not in {"admin", "user"}:
+            raise ValueError("invalid role")
 
-        with self._lock:
-            users = self._read_all()
-            if any(str(u.get("username", "")) == clean_username for u in users):
+        self.ensure()
+        with db_session_context() as db:
+            exists = db.execute(select(User.id).where(User.username == clean_username)).scalar_one_or_none()
+            if exists is not None:
                 raise ValueError("username exists")
 
-            salt = secrets.token_hex(16)
-            users.append(
-                {
-                    "username": clean_username,
-                    "role": "user",
-                    "salt": salt,
-                    "password_hash": _hash_password(password, salt),
-                }
+            db.add(
+                User(
+                    username=clean_username,
+                    password_hash=self._hash_password(password),
+                    role=role,
+                    created_at=utcnow(),
+                    last_login=None,
+                )
             )
-            self._write_all(users)
 
-    def verify_user(self, username: str, password: str) -> Optional[Dict[str, str]]:
+    def verify_user(self, username: str, password: str, role: Optional[str] = None) -> Optional[dict[str, str]]:
         clean_username = username.strip()
         if not clean_username:
             return None
 
-        with self._lock:
-            users = self._read_all()
-            for user in users:
-                if str(user.get("username", "")) != clean_username:
-                    continue
-                if str(user.get("role", "user")) != "user":
-                    continue
-                salt = str(user.get("salt", ""))
-                expected = str(user.get("password_hash", ""))
-                actual = _hash_password(password, salt)
-                if hmac.compare_digest(expected, actual):
-                    return {"username": clean_username, "role": "user"}
+        self.ensure()
+        with db_session_context() as db:
+            user = db.execute(select(User).where(User.username == clean_username)).scalar_one_or_none()
+            if user is None:
                 return None
-        return None
+            if role and user.role != role:
+                return None
+            if not self._verify_password(password, user.password_hash):
+                return None
+
+            user.last_login = utcnow()
+            return {"id": str(user.id), "username": user.username, "role": user.role}
+
+    def get_by_username(self, username: str) -> Optional[dict[str, str]]:
+        clean_username = username.strip()
+        if not clean_username:
+            return None
+        self.ensure()
+        with db_session_context() as db:
+            user = db.execute(select(User).where(User.username == clean_username)).scalar_one_or_none()
+            if user is None:
+                return None
+            return {"id": str(user.id), "username": user.username, "role": user.role}
+
+    @staticmethod
+    def _hash_password(password: str) -> str:
+        hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        return hashed.decode("utf-8")
+
+    @staticmethod
+    def _verify_password(password: str, password_hash: str) -> bool:
+        try:
+            return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+        except Exception:
+            return False

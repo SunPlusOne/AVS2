@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from api.deps import get_settings
 from api.config import Settings
 from api.schemas.contracts import UploadResponse
+from api.services.auth import user_guard
 from api.services.media_inspector import probe_video_metadata
 
 
@@ -23,7 +24,7 @@ def _ext(name: str) -> str:
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload(file: UploadFile = File(...), settings: Settings = Depends(get_settings)):
+async def upload(file: UploadFile = File(...), settings: Settings = Depends(get_settings), ok=Depends(user_guard)):
     ext = _ext(file.filename or "")
     if ext not in ALLOWED_EXT:
         raise HTTPException(status_code=400, detail="unsupported file type")

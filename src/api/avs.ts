@@ -10,6 +10,23 @@ import type {
   UserLoginResponse,
 } from '@/types/contracts'
 
+type TaskAssetUrlOptions = {
+  cacheBust?: string | number
+  authToken?: string
+}
+
+function buildTaskAssetUrl(path: string, options?: TaskAssetUrlOptions): string {
+  const params = new URLSearchParams()
+  if (options?.cacheBust != null) {
+    params.set('v', String(options.cacheBust))
+  }
+  if (options?.authToken) {
+    params.set('token', options.authToken)
+  }
+  const query = params.toString()
+  return query ? `${path}?${query}` : path
+}
+
 export async function uploadVideo(file: File): Promise<UploadResponse> {
   const form = new FormData()
   form.append('file', file)
@@ -44,12 +61,14 @@ export async function cancelTask(taskId: string): Promise<{ ok: true }> {
   return data
 }
 
-export function getResultUrl(taskId: string): string {
-  return `/api/tasks/${encodeURIComponent(taskId)}/result`
+export function getResultUrl(taskId: string, options?: TaskAssetUrlOptions): string {
+  const path = `/api/tasks/${encodeURIComponent(taskId)}/result`
+  return buildTaskAssetUrl(path, options)
 }
 
-export function getMasksUrl(taskId: string): string {
-  return `/api/tasks/${encodeURIComponent(taskId)}/masks`
+export function getMasksUrl(taskId: string, options?: TaskAssetUrlOptions): string {
+  const path = `/api/tasks/${encodeURIComponent(taskId)}/masks`
+  return buildTaskAssetUrl(path, options)
 }
 
 export async function adminLogin(username: string, password: string): Promise<AdminLoginResponse> {

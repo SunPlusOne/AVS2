@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { api } from '@/api/http'
 import { getMasksUrl, getResultUrl, getTaskReport } from '@/api/avs'
+import { useAuthStore } from '@/stores/auth'
 import type { TaskReport } from '@/types/contracts'
 
 const props = defineProps<{
@@ -12,6 +14,9 @@ const props = defineProps<{
 const mode = ref<'compare' | 'result'>('compare')
 const cacheKey = ref(Date.now())
 const originalUrl = ref('')
+const resultBlobUrl = ref('')
+const masksBlobUrl = ref('')
+const assetError = ref('')
 const report = ref<TaskReport | null>(null)
 
 const compareStageRef = ref<HTMLDivElement | null>(null)
@@ -24,6 +29,7 @@ const draggingDivider = ref(false)
 const isPlaying = ref(false)
 const currentFrame = ref(1)
 const fallbackFps = ref(25)
+const auth = useAuthStore()
 
 let syncing = false
 
@@ -34,16 +40,55 @@ function revokeOriginalUrl() {
   }
 }
 
+function revokeResultBlobUrl() {
+  if (resultBlobUrl.value) {
+    URL.revokeObjectURL(resultBlobUrl.value)
+    resultBlobUrl.value = ''
+  }
+}
+
+function revokeMasksBlobUrl() {
+  if (masksBlobUrl.value) {
+    URL.revokeObjectURL(masksBlobUrl.value)
+    masksBlobUrl.value = ''
+  }
+}
+
+async function loadSecuredAssets(taskId: string) {
+  assetError.value = ''
+  revokeResultBlobUrl()
+  revokeMasksBlobUrl()
+
+  try {
+    const [resultRes, masksRes] = await Promise.all([
+      api.get<Blob>(getResultUrl(taskId), { responseType: 'blob' }),
+      api.get<Blob>(getMasksUrl(taskId), { responseType: 'blob' }),
+    ])
+
+    resultBlobUrl.value = URL.createObjectURL(resultRes.data)
+    masksBlobUrl.value = URL.createObjectURL(masksRes.data)
+  } catch {
+    assetError.value = '结果文件拉取失败，请重新登录后重试。'
+  }
+}
+
 watch(
   () => [props.taskId, props.status],
   async () => {
     cacheKey.value = Date.now()
     report.value = null
     currentFrame.value = 1
+    assetError.value = ''
+    revokeResultBlobUrl()
+    revokeMasksBlobUrl()
 
     if (!props.taskId || props.status !== 'completed') return
     try {
-      report.value = await getTaskReport(props.taskId)
+      const [taskReport] = await Promise.all([
+        getTaskReport(props.taskId),
+        loadSecuredAssets(props.taskId),
+      ])
+      report.value = taskReport
     } catch {
       report.value = null
     }
@@ -62,18 +107,28 @@ watch(
 
 onBeforeUnmount(() => {
   revokeOriginalUrl()
+  revokeResultBlobUrl()
+  revokeMasksBlobUrl()
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', onPointerUp)
 })
 
 const resultUrl = computed(() => {
+  if (resultBlobUrl.value) return resultBlobUrl.value
   if (!props.taskId) return ''
-  return `${getResultUrl(props.taskId)}?v=${cacheKey.value}`
+  return getResultUrl(props.taskId, {
+    cacheBust: cacheKey.value,
+    authToken: auth.token || undefined,
+  })
 })
 
 const masksUrl = computed(() => {
+  if (masksBlobUrl.value) return masksBlobUrl.value
   if (!props.taskId) return ''
-  return `${getMasksUrl(props.taskId)}?v=${cacheKey.value}`
+  return getMasksUrl(props.taskId, {
+    cacheBust: cacheKey.value,
+    authToken: auth.token || undefined,
+  })
 })
 
 const canShow = computed(() => props.status === 'completed' && !!props.taskId)
@@ -396,6 +451,8 @@ function onStagePointerDown(e: PointerEvent) {
         <a class="btn-primary" :href="resultUrl" target="_blank" rel="noreferrer">下载结果视频</a>
         <a class="btn-outline" :href="masksUrl" target="_blank" rel="noreferrer">下载逐帧掩码</a>
       </div>
+
+      <div v-if="assetError" class="asset-error">{{ assetError }}</div>
     </div>
   </div>
 </template>
@@ -517,6 +574,12 @@ function onStagePointerDown(e: PointerEvent) {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+
+.asset-error {
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .compare-divider {

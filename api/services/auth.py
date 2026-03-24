@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
@@ -30,20 +30,24 @@ def issue_admin_jwt(settings: Settings) -> tuple[str, str]:
     return issue_jwt(settings, settings.admin_username, "admin")
 
 
+def _decode_authorized_user(settings: Settings, token: str, allowed_roles: set[str]) -> dict[str, str]:
+    try:
+        data = jwt.decode(token, settings.admin_jwt_secret, algorithms=["HS256"], issuer=settings.admin_jwt_issuer)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="invalid token")
+
+    role = data.get("role")
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="forbidden")
+    return {"username": str(data.get("sub", "")), "role": str(role)}
+
+
 def require_roles(settings: Settings, allowed_roles: set[str]):
     # Use Optional or Union[..., None] for compatibility with Python 3.8
     async def _dep(creds: Optional[HTTPAuthorizationCredentials] = Depends(security)):
         if not creds or creds.scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="missing token")
-        token = creds.credentials
-        try:
-            data = jwt.decode(token, settings.admin_jwt_secret, algorithms=["HS256"], issuer=settings.admin_jwt_issuer)
-        except JWTError:
-            raise HTTPException(status_code=401, detail="invalid token")
-        role = data.get("role")
-        if role not in allowed_roles:
-            raise HTTPException(status_code=403, detail="forbidden")
-        return {"username": str(data.get("sub", "")), "role": str(role)}
+        return _decode_authorized_user(settings, creds.credentials, allowed_roles)
 
     return _dep
 
@@ -66,3 +70,17 @@ async def user_guard(
 ):
     dep = require_roles(settings, {"admin", "user"})
     return await dep(creds)
+
+
+async def user_guard_with_query_token(
+    settings: Settings = Depends(get_settings),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    token: Optional[str] = Query(default=None),
+):
+    if creds and creds.scheme.lower() == "bearer":
+        return _decode_authorized_user(settings, creds.credentials, {"admin", "user"})
+
+    if token:
+        return _decode_authorized_user(settings, token, {"admin", "user"})
+
+    raise HTTPException(status_code=401, detail="missing token")

@@ -11,6 +11,9 @@ from typing import Any, Optional
 import asyncio
 
 from api.schemas.contracts import TaskMetrics, TaskProgress
+from api.services.algorithms_repo import AlgorithmsRepo
+from api.services.tasks_repo import TasksRepo
+from api.services.users_repo import UsersRepo
 from api.services.ws_manager import WSManager
 from api.utils.logger import log_json
 
@@ -44,11 +47,24 @@ class TaskRuntime:
 
 
 class TaskManager:
-    def __init__(self, tasks_dir: Path, uploads_dir: Path, ws: WSManager, logger) -> None:
+    def __init__(
+        self,
+        tasks_dir: Path,
+        uploads_dir: Path,
+        ws: WSManager,
+        logger,
+        *,
+        tasks_repo: TasksRepo,
+        algorithms_repo: AlgorithmsRepo,
+        users_repo: UsersRepo,
+    ) -> None:
         self._tasks_dir = tasks_dir
         self._uploads_dir = uploads_dir
         self._ws = ws
         self._logger = logger
+        self._tasks_repo = tasks_repo
+        self._algorithms_repo = algorithms_repo
+        self._users_repo = users_repo
         self._tasks: dict[str, TaskRuntime] = {}
         self._lock = asyncio.Lock()
 
@@ -80,7 +96,13 @@ class TaskManager:
             payload["filename"] = self._guess_filename(file_id)
         return payload
 
-    async def create(self, file_id: str, algorithm: str, scene: Optional[str] = None) -> str:
+    async def create(
+        self,
+        file_id: str,
+        algorithm: str,
+        scene: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> str:
         task_id = uuid.uuid4().hex
         upload_meta = self._load_upload_meta(file_id)
         resolved_scene = scene
@@ -119,6 +141,22 @@ class TaskManager:
         )
         async with self._lock:
             self._tasks[task_id] = rt
+
+        user_id: Optional[int] = None
+        if username:
+            profile = self._users_repo.get_by_username(username)
+            if profile and profile.get("id"):
+                user_id = int(profile["id"])
+
+        model_id = self._algorithms_repo.find_model_id(algorithm)
+        input_path = str(self._uploads_dir / f"{file_id}__{upload_meta.get('filename')}") if upload_meta.get("filename") else None
+        self._tasks_repo.create_task(
+            task_uid=task_id,
+            user_id=user_id,
+            model_id=model_id,
+            input_path=input_path,
+        )
+
         await self._persist(rt)
         await self._emit(rt)
         log_json(
@@ -222,6 +260,22 @@ class TaskManager:
             if message is not None:
                 rt.message = message
             rt.updated_at = _now()
+
+        if status is not None:
+            output_path = None
+            finished_at = None
+            if status == "completed":
+                output_path = str(self._tasks_dir.parent / "results" / f"{task_id}.mp4")
+                finished_at = _now()
+            elif status in {"failed", "canceled"}:
+                finished_at = _now()
+            self._tasks_repo.update_task_status(
+                task_uid=task_id,
+                status=status,
+                output_path=output_path,
+                finished_at=finished_at,
+            )
+
         await self._persist(rt)
         await self._emit(rt)
 

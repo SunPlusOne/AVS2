@@ -11,8 +11,10 @@ from api.config import get_settings
 from api.routers import admin, algorithms, health, tasks, upload, user, ws
 from api.services.algorithms_repo import AlgorithmsRepo
 from api.services.inference_service import InferenceService
+from api.services.logs_repo import LogsRepo
 from api.services.task_manager import TaskManager
 from api.services.task_runner import TaskRunner
+from api.services.tasks_repo import TasksRepo
 from api.services.users_repo import UsersRepo
 from api.services.ws_manager import WSManager
 from api.utils.logger import build_logger
@@ -25,7 +27,17 @@ def create_app() -> FastAPI:
     ws_manager = WSManager()
     algorithms_repo = AlgorithmsRepo(settings.algorithms_file)
     users_repo = UsersRepo(settings.users_file)
-    task_manager = TaskManager(settings.tasks_dir, settings.uploads_dir, ws_manager, logger)
+    logs_repo = LogsRepo()
+    tasks_repo = TasksRepo()
+    task_manager = TaskManager(
+        settings.tasks_dir,
+        settings.uploads_dir,
+        ws_manager,
+        logger,
+        tasks_repo=tasks_repo,
+        algorithms_repo=algorithms_repo,
+        users_repo=users_repo,
+    )
     inference = InferenceService(settings.uploads_dir, settings.results_dir, settings.masks_dir, logger)
     task_runner = TaskRunner(task_manager, inference, algorithms_repo, logger)
 
@@ -42,6 +54,8 @@ def create_app() -> FastAPI:
     app.state.ws_manager = ws_manager
     app.state.algorithms_repo = algorithms_repo
     app.state.users_repo = users_repo
+    app.state.logs_repo = logs_repo
+    app.state.tasks_repo = tasks_repo
     app.state.task_manager = task_manager
     app.state.task_runner = task_runner
 
@@ -57,6 +71,7 @@ def create_app() -> FastAPI:
     async def _startup():
         algorithms_repo.ensure()
         users_repo.ensure()
+        users_repo.ensure_admin(username=settings.admin_username, password=settings.admin_password)
         
     # --- Static Files Hosting (Frontend) ---
     # Check if 'dist' folder exists (Frontend build artifact)

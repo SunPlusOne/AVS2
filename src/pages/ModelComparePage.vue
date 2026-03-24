@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createTask, getTask, getTaskReport, getResultUrl } from '@/api/avs'
 import * as VideoUploadCardModule from '@/components/VideoUploadCard.vue'
+import { useAuthStore } from '@/stores/auth'
 import type {
   AlgorithmId,
   InferenceScene,
@@ -31,6 +32,7 @@ const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
 
 const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
+const auth = useAuthStore()
 const selectedAlgorithms = ref<AlgorithmId[]>(['avsegformer', 'vct', 'combo'])
 const selectedScene = ref<InferenceScene>('auto_detect')
 const launching = ref(false)
@@ -449,7 +451,7 @@ onBeforeUnmount(() => {
               :ref="setVideoRef(item.taskId)"
               class="compare-video"
               controls
-              :src="`${getResultUrl(item.taskId)}?v=${item.taskId}`"
+              :src="getResultUrl(item.taskId, { cacheBust: item.taskId, authToken: auth.token || undefined })"
               preload="metadata"
               @timeupdate="syncBySource(item.taskId)"
             />
