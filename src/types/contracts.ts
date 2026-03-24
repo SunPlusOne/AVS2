@@ -1,6 +1,7 @@
 export type AlgorithmId = 'avsegformer' | 'vct' | 'combo'
 export type InferenceScene = 'single_source' | 'multi_source' | 'auto_detect'
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
+export type UserRole = 'admin' | 'user'
 
 export interface UploadResponse {
   file_id: string
@@ -81,6 +82,13 @@ export interface AlgorithmInfo {
 export interface AdminLoginResponse {
   token: string
   expires_at: string
+  role: UserRole
+}
+
+export interface UserLoginResponse {
+  token: string
+  expires_at: string
+  role: UserRole
 }
 
 export interface LogEntry {

@@ -9,9 +9,9 @@ import 'element-plus/dist/index.css'
 // 创建Vue应用实例
 const app = createApp(App)
 
+app.use(createPinia())
 // 使用路由
 app.use(router)
-app.use(createPinia())
 app.use(ElementPlus)
 
 // 挂载应用

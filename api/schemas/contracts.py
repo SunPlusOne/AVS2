@@ -73,12 +73,30 @@ class AlgorithmInfo(BaseModel):
 
 
 class AdminLoginRequest(BaseModel):
+    username: str
     password: str
 
 
 class AdminLoginResponse(BaseModel):
     token: str
     expires_at: str
+    role: Literal["admin", "user"]
+
+
+class UserRegisterRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UserLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UserLoginResponse(BaseModel):
+    token: str
+    expires_at: str
+    role: Literal["admin", "user"]
 
 
 class LogEntry(BaseModel):

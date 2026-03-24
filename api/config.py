@@ -42,7 +42,9 @@ class Settings:
     models_dir: Path
     logs_dir: Path
     algorithms_file: Path
+    users_file: Path
     admin_password: str
+    admin_username: str
     admin_jwt_secret: str
     admin_jwt_issuer: str
     # Python environment paths (local inference)
@@ -73,8 +75,10 @@ def get_settings() -> Settings:
     algorithms_file = data_dir / "algorithms.json"
 
     admin_password = os.getenv("AVS_ADMIN_PASSWORD", "admin")
+    admin_username = os.getenv("AVS_ADMIN_USERNAME", "admin")
     admin_jwt_secret = os.getenv("AVS_ADMIN_JWT_SECRET", "dev-secret-change")
     admin_jwt_issuer = os.getenv("AVS_ADMIN_JWT_ISS", "avs-system")
+    users_file = data_dir / "users.json"
 
     # Python environments
     env_combo = os.getenv("AVS_ENV_COMBO", "")
@@ -94,7 +98,9 @@ def get_settings() -> Settings:
         models_dir=models_dir,
         logs_dir=logs_dir,
         algorithms_file=algorithms_file,
+        users_file=users_file,
         admin_password=admin_password,
+        admin_username=admin_username,
         admin_jwt_secret=admin_jwt_secret,
         admin_jwt_issuer=admin_jwt_issuer,
         env_combo=env_combo,

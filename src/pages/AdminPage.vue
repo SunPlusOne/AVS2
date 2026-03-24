@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { adminLogin, adminUploadModel, getAdminLogs } from '@/api/avs'
-import { useAdminStore } from '@/stores/admin'
+import { adminUploadModel, getAdminLogs } from '@/api/avs'
+import { useAuthStore } from '@/stores/auth'
 
-const admin = useAdminStore()
-
-const password = ref('')
-const loggingIn = ref(false)
+const auth = useAuthStore()
 
 const modelAlgorithmId = ref('avsegformer')
 const modelName = ref('AVSegFormer')
@@ -27,21 +24,7 @@ const benchmarkRows = [
   { model: 'COMBO', s4_jf: '83.1%', ms3_jf: '61.7%', params: '68M', speed: '~100ms/帧' },
 ]
 
-const authed = computed(() => admin.token.length > 0)
-
-async function onLogin() {
-  loggingIn.value = true
-  try {
-    const { token } = await adminLogin(password.value)
-    admin.setToken(token)
-    ElMessage.success('登录成功')
-    password.value = ''
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '登录失败')
-  } finally {
-    loggingIn.value = false
-  }
-}
+const authed = computed(() => auth.isLoggedIn && auth.isAdmin)
 
 function onPickWeight(e: Event) {
   const input = e.target as HTMLInputElement
@@ -61,7 +44,7 @@ async function onUploadModel() {
   }
   uploading.value = true
   try {
-    await adminUploadModel(admin.token, {
+    await adminUploadModel(auth.token, {
       algorithm_id: modelAlgorithmId.value,
       name: modelName.value,
       version: modelVersion.value,
@@ -85,7 +68,7 @@ async function onRefreshLogs() {
   }
   loadingLogs.value = true
   try {
-    logs.value = await getAdminLogs(admin.token, { limit: 200 })
+    logs.value = await getAdminLogs(auth.token, { limit: 200 })
   } catch (e: any) {
     ElMessage.error(e?.message ?? '加载日志失败')
   } finally {
@@ -103,16 +86,12 @@ async function onRefreshLogs() {
 
     <div class="grid gap-5 lg:grid-cols-2">
       <div class="avs-card">
-        <div class="avs-card-title">管理员登录</div>
-        <div class="avs-card-desc">通过 /api/admin/login 获取 JWT 并存入浏览器</div>
+        <div class="avs-card-title">管理员身份</div>
+        <div class="avs-card-desc">当前会话来自统一登录入口 /login</div>
 
         <div class="mt-4 grid gap-3">
-          <el-input v-model="password" type="password" placeholder="管理员密码" show-password />
-          <div class="flex gap-2">
-            <el-button class="avs-btn-primary" :loading="loggingIn" @click="onLogin">登录</el-button>
-            <el-button v-if="authed" class="avs-btn-secondary" @click="admin.clear()">退出</el-button>
-          </div>
-          <div class="token-preview">当前 token：{{ authed ? admin.token.slice(0, 24) + '…' : '未登录' }}</div>
+          <div class="token-preview">当前角色：{{ auth.role || '未知' }}</div>
+          <div class="token-preview">当前 token：{{ authed ? auth.token.slice(0, 24) + '…' : '未登录' }}</div>
         </div>
       </div>
 

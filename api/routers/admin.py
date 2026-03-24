@@ -17,10 +17,10 @@ router = APIRouter()
 
 @router.post("/admin/login", response_model=AdminLoginResponse)
 async def admin_login(body: AdminLoginRequest, settings: Settings = Depends(get_settings)):
-    if body.password != settings.admin_password:
+    if body.username != settings.admin_username or body.password != settings.admin_password:
         raise HTTPException(status_code=401, detail="invalid password")
     token, expires_at = issue_admin_jwt(settings)
-    return AdminLoginResponse(token=token, expires_at=expires_at)
+    return AdminLoginResponse(token=token, expires_at=expires_at, role="admin")
 
 
 @router.post("/admin/models")

@@ -7,6 +7,7 @@ import type {
   TaskProgress,
   TaskReport,
   UploadResponse,
+  UserLoginResponse,
 } from '@/types/contracts'
 
 export async function uploadVideo(file: File): Promise<UploadResponse> {
@@ -51,8 +52,18 @@ export function getMasksUrl(taskId: string): string {
   return `/api/tasks/${encodeURIComponent(taskId)}/masks`
 }
 
-export async function adminLogin(password: string): Promise<AdminLoginResponse> {
-  const { data } = await api.post<AdminLoginResponse>('/api/admin/login', { password })
+export async function adminLogin(username: string, password: string): Promise<AdminLoginResponse> {
+  const { data } = await api.post<AdminLoginResponse>('/api/admin/login', { username, password })
+  return data
+}
+
+export async function userLogin(username: string, password: string): Promise<UserLoginResponse> {
+  const { data } = await api.post<UserLoginResponse>('/api/user/login', { username, password })
+  return data
+}
+
+export async function userRegister(username: string, password: string): Promise<{ ok: true }> {
+  const { data } = await api.post<{ ok: true }>('/api/user/register', { username, password })
   return data
 }
 

@@ -1,2 +1,2 @@
-from api.routers import admin, algorithms, health, tasks, upload, ws
+from api.routers import admin, algorithms, health, tasks, upload, user, ws
 
