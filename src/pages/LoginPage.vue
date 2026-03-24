@@ -95,13 +95,22 @@ async function onLogin() {
 
 <style scoped>
 .auth-page {
-  min-height: calc(100vh - 180px);
+  min-height: 100dvh;
   display: grid;
   place-items: center;
+  padding: 24px 16px;
+  position: relative;
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)), url('/AVSbackground.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
 }
 
 .auth-card {
   width: min(460px, 92vw);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 .auth-link {
@@ -112,5 +121,11 @@ async function onLogin() {
 
 .auth-link:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .auth-page {
+    padding: 16px 12px;
+  }
 }
 </style>

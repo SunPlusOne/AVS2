@@ -39,7 +39,7 @@ async function onLogout() {
       </div>
     </header>
 
-    <main class="app-main">
+    <main :class="['app-main', { 'auth-main': isAuthPage }]">
       <router-view />
     </main>
   </div>
