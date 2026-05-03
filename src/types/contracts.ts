@@ -1,4 +1,4 @@
-export type AlgorithmId = 'avsegformer' | 'vct' | 'combo'
+export type AlgorithmId = 'avsegformer' | 'avis' | 'vct' | 'combo'
 export type InferenceScene = 'single_source' | 'multi_source' | 'auto_detect'
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
 export type UserRole = 'admin' | 'user'

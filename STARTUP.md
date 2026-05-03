@@ -63,6 +63,11 @@ AVS_AVSEGFORMER_ROOT=/root/AVS2/api/third_party/AVSegFormer
 AVS_AVSEGFORMER_VGGISH=/root/autodl-tmp/COMBO-AVS/pretrained/vggish-10086976.pth
 # AVS_WEIGHT_AVSEGFORMER_S4=/root/AVS2/api/data/models/avsegformer/s4/S4_best.pth
 # AVS_WEIGHT_AVSEGFORMER_MS3=/root/AVS2/api/data/models/avsegformer/ms3/MS3_best.pth
+
+# AVIS (CVPR 2025)
+AVS_ENV_AVIS=/root/autodl-tmp/conda/envs/avism
+AVS_AVIS_ROOT=/root/autodl-tmp/avis
+# AVS_WEIGHT_AVIS=/root/autodl-tmp/avis/checkpoints/AVISM_SwinL_COCO.pth
 ```
 
 说明：

@@ -6,6 +6,7 @@ from typing import Iterable, Optional
 
 _BENCHMARK_PRIORS = {
     "avsegformer": {"s4": 78.4, "ms3": 54.0},
+    "avis": {"coco": 53.5, "s4": 53.5},
     "vct": {"s4": 81.2, "ms3": 58.3},
     "combo": {"s4": 83.1, "ms3": 61.7},
 }

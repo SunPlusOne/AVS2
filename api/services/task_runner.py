@@ -180,7 +180,7 @@ class TaskRunner:
         algo_meta = self._get_algo_meta(algorithm)
         version = str(algo_meta.get("version", "")).strip() or "v0"
         meta_weight_path = str(algo_meta.get("weight_path", "")).strip()
-        has_scene = bool(str(scene or "").strip())
+        has_scene = bool(str(scene or "").strip()) and algorithm != "avis"
 
         candidates: list[str] = []
         seen: set[str] = set()
@@ -264,6 +264,32 @@ class TaskRunner:
                 add(str(settings.models_dir / algorithm / subset / "MS3_best.pth"))
                 add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_pvt2_ms3" / "MS3_best.pth"))
                 add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_res50_ms3" / "MS3_best.pth"))
+        elif algorithm == "avis":
+            project_root = Path(__file__).resolve().parent.parent.parent
+            avis_root = os.getenv("AVS_AVIS_ROOT", "").strip()
+            avis_root = avis_root or str(project_root / "api" / "third_party" / "avis")
+            add(str(settings.models_dir / algorithm / version / "AVISM_SwinL_COCO.pth"))
+            add(str(settings.models_dir / algorithm / version / "AVISM_SwinL_IN.pth"))
+            add(str(settings.models_dir / algorithm / version / "AVISM_R50_COCO.pth"))
+            add(str(settings.models_dir / algorithm / version / "AVISM_R50_IN.pth"))
+            add(str(settings.models_dir / algorithm / "builtin" / "AVISM_SwinL_COCO.pth"))
+            add(str(settings.models_dir / algorithm / "builtin" / "AVISM_SwinL_IN.pth"))
+            add(str(settings.models_dir / algorithm / "builtin" / "AVISM_R50_COCO.pth"))
+            add(str(settings.models_dir / algorithm / "builtin" / "AVISM_R50_IN.pth"))
+            add(str(settings.models_dir / algorithm / "AVISM_SwinL_COCO.pth"))
+            add(str(settings.models_dir / algorithm / "AVISM_SwinL_IN.pth"))
+            add(str(settings.models_dir / algorithm / "AVISM_R50_COCO.pth"))
+            add(str(settings.models_dir / algorithm / "AVISM_R50_IN.pth"))
+            add(str(settings.models_dir / algorithm / "model_best.pth"))
+            add(str(Path(avis_root) / "checkpoints" / "AVISM_SwinL_COCO.pth"))
+            add(str(Path(avis_root) / "checkpoints" / "AVISM_SwinL_IN.pth"))
+            add(str(Path(avis_root) / "checkpoints" / "AVISM_R50_COCO.pth"))
+            add(str(Path(avis_root) / "checkpoints" / "AVISM_R50_IN.pth"))
+            add(str(Path(avis_root) / "checkpoints" / "model_best.pth"))
+            checkpoints_dir = Path(avis_root) / "checkpoints"
+            if checkpoints_dir.exists():
+                for p in sorted(checkpoints_dir.rglob("*.pth")):
+                    add(str(p))
 
         algo_model_dir = settings.models_dir / algorithm
         if algo_model_dir.exists():
@@ -408,7 +434,7 @@ class TaskRunner:
             
             should_use_remote = bool(settings.remote_inference_url)
             has_local_weight = bool(weight_path) and os.path.isfile(weight_path)
-            supports_local_inference = algorithm in {"combo", "vct", "avsegformer"}
+            supports_local_inference = algorithm in {"combo", "vct", "avsegformer", "avis"}
             
             if should_use_remote:
                 await self._manager.update(task_id, message=f"正在请求远程推理 ({algorithm})...")

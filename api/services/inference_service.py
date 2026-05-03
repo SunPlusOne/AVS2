@@ -270,6 +270,9 @@ class InferenceService:
         elif algorithm == "vct":
             env_path = settings.env_vct
             script_path = "api/scripts/infer_vct.py"
+        elif algorithm == "avis":
+            env_path = settings.env_avis
+            script_path = "api/scripts/infer_avis.py"
         # Add other algorithms here
         # elif algorithm == "avsegformer": ...
         

@@ -53,6 +53,7 @@ class Settings:
     env_combo: str
     env_avsegformer: str
     env_vct: str
+    env_avis: str
     # Remote inference config
     remote_inference_url: str
     remote_inference_token: str
@@ -88,6 +89,7 @@ def get_settings() -> Settings:
     env_combo = os.getenv("AVS_ENV_COMBO", "")
     env_avsegformer = os.getenv("AVS_ENV_AVSEGFORMER", "")
     env_vct = os.getenv("AVS_ENV_VCT", "")
+    env_avis = os.getenv("AVS_ENV_AVIS", "")
     
     # Remote inference
     remote_inference_url = os.getenv("AVS_REMOTE_URL", "") # e.g., https://your-colab-url.ngrok.io
@@ -112,6 +114,7 @@ def get_settings() -> Settings:
         env_combo=env_combo,
         env_avsegformer=env_avsegformer,
         env_vct=env_vct,
+        env_avis=env_avis,
         remote_inference_url=remote_inference_url,
         remote_inference_token=remote_inference_token,
     )

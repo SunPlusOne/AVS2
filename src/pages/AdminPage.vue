@@ -100,7 +100,7 @@ async function onRefreshLogs() {
         <div class="avs-card-desc">上传 .pth 并注册算法元数据</div>
 
         <div class="mt-4 grid gap-3">
-          <el-input v-model="modelAlgorithmId" placeholder="algorithm_id (avsegformer/vct/combo/...)" />
+          <el-input v-model="modelAlgorithmId" placeholder="algorithm_id (avsegformer/avis/vct/combo/...)" />
           <el-input v-model="modelName" placeholder="name" />
           <el-input v-model="modelVersion" placeholder="version" />
           <el-input v-model="modelInputSize" placeholder="input_size (224x224/384x384)" />

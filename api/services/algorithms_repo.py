@@ -19,6 +19,14 @@ DEFAULT_ALGORITHMS: list[dict[str, Any]] = [
         "enabled": True,
     },
     {
+        "id": "avis",
+        "name": "AVIS",
+        "version": "builtin",
+        "description": "Audio-Visual Instance Segmentation（CVPR 2025）。",
+        "input_size": "640x640",
+        "enabled": True,
+    },
+    {
         "id": "vct",
         "name": "VCT",
         "version": "builtin",
@@ -45,10 +53,15 @@ class AlgorithmsRepo:
         init_database()
         self._migrate_from_json_once()
         with db_session_context() as db:
-            count = db.execute(select(ModelMeta.id).limit(1)).scalar_one_or_none()
-            if count is not None:
-                return
+            existing_ids = {
+                str(v).strip().lower()
+                for v in db.execute(select(ModelMeta.algorithm_id)).scalars().all()
+                if str(v).strip()
+            }
             for item in DEFAULT_ALGORITHMS:
+                algo_id = str(item["id"]).strip().lower()
+                if algo_id in existing_ids:
+                    continue
                 db.add(
                     ModelMeta(
                         algorithm_id=str(item["id"]),
@@ -62,6 +75,7 @@ class AlgorithmsRepo:
                         created_at=utcnow(),
                     )
                 )
+                existing_ids.add(algo_id)
 
     def _migrate_from_json_once(self) -> None:
         if not self._file_path.exists():

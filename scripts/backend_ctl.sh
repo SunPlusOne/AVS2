@@ -36,6 +36,7 @@ detect_python() {
     "${AVS_ENV_COMBO:-}"
     "${AVS_ENV_AVSEGFORMER:-}"
     "${AVS_ENV_VCT:-}"
+    "${AVS_ENV_AVIS:-}"
   )
   local env_path=""
 
@@ -63,7 +64,7 @@ detect_python() {
     return 0
   fi
 
-  echo "[ERROR] Python not found. Install Python or set AVS_ENV_COMBO / AVS_ENV_AVSEGFORMER / AVS_ENV_VCT in .env." >&2
+  echo "[ERROR] Python not found. Install Python or set AVS_ENV_COMBO / AVS_ENV_AVSEGFORMER / AVS_ENV_VCT / AVS_ENV_AVIS in .env." >&2
   return 1
 }
 

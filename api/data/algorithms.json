@@ -8,6 +8,14 @@
     "enabled": true
   },
   {
+    "id": "avis",
+    "name": "AVIS",
+    "version": "builtin",
+    "description": "Audio-Visual Instance Segmentation（CVPR 2025）。",
+    "input_size": "640x640",
+    "enabled": true
+  },
+  {
     "id": "vct",
     "name": "VCT",
     "version": "builtin",

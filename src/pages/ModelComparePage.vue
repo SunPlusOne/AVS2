@@ -26,6 +26,7 @@ interface CompareItem {
 
 const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
   { id: 'avsegformer', label: 'AVSegFormer' },
+  { id: 'avis', label: 'AVIS' },
   { id: 'vct', label: 'VCT' },
   { id: 'combo', label: 'COMBO' },
 ]
@@ -33,7 +34,7 @@ const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
 const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
 const auth = useAuthStore()
-const selectedAlgorithms = ref<AlgorithmId[]>(['avsegformer', 'vct', 'combo'])
+const selectedAlgorithms = ref<AlgorithmId[]>(['avsegformer', 'avis', 'vct', 'combo'])
 const selectedScene = ref<InferenceScene>('auto_detect')
 const launching = ref(false)
 

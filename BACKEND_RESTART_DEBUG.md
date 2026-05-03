@@ -77,7 +77,7 @@ ss -ltnp | grep ':8000 ' || true
 
 现象：脚本提示找不到 Python 或依赖报错。
 
-处理：检查 `.env` 中 `AVS_ENV_COMBO`、`AVS_ENV_AVSEGFORMER` 或 `AVS_ENV_VCT` 是否正确。
+处理：检查 `.env` 中 `AVS_ENV_COMBO`、`AVS_ENV_AVSEGFORMER`、`AVS_ENV_VCT` 或 `AVS_ENV_AVIS` 是否正确。
 
 你当前推荐值：
 
@@ -185,7 +185,58 @@ cd /root/AVS2
 ./scripts/backend_ctl.sh restart
 ```
 
-### 4.8 场景选择与权重映射（AVSegFormer/VCT/COMBO）
+### 4.8 AVIS 本地推理配置
+
+现象：任务失败，提示 `Python environment for avis is not configured`、`AVIS source not found`、`AVIS config not found` 或 `weight file not found`。
+
+处理：在 `.env` 增加以下配置（按你的实际路径调整）：
+
+```ini
+AVS_ENV_AVIS=/root/autodl-tmp/conda/envs/avism
+AVS_AVIS_ROOT=/root/autodl-tmp/avis
+AVS_WEIGHT_AVIS=/root/autodl-tmp/avis/checkpoints/AVISM_SwinL_COCO.pth
+# 可选：手动指定配置文件（不配则会按权重名自动匹配 R50/SwinL）
+# AVS_AVIS_CONFIG=/root/autodl-tmp/avis/configs/avism/R50/avism_R50_IN.yaml
+```
+
+说明：
+
+- 你的 `AVISM_SwinL_COCO.pth` 可以先通过管理员后台上传，或手动放到服务器后写入 `AVS_WEIGHT_AVIS`。
+- AVIS 当前走实例分割链路，不依赖首页的“单源/多源”场景选择。
+
+改完后重启后端：
+
+```bash
+cd /root/AVS2
+./scripts/backend_ctl.sh restart
+```
+
+如果你“权重已经下载在本机但还没上传后台”，可以直接按下面步骤跑通：
+
+1. 把权重放到固定目录（示例）
+
+```bash
+mkdir -p /root/AVS2/api/data/models/avis/builtin
+cp /你的本地路径/AVISM_*.pth /root/AVS2/api/data/models/avis/builtin/
+```
+
+2. 在 `.env` 指向这个文件（按实际文件名改）
+
+```ini
+AVS_WEIGHT_AVIS=/root/AVS2/api/data/models/avis/builtin/AVISM_R50_IN.pth
+```
+
+3. 重启后端并做健康检查
+
+```bash
+cd /root/AVS2
+./scripts/backend_ctl.sh restart
+curl -sS http://127.0.0.1:8000/api/health
+```
+
+4. 前端首页直接选 `AVIS` 发起任务即可，不需要先去管理员页面上传。
+
+### 4.9 场景选择与权重映射（AVSegFormer/VCT/COMBO）
 
 前端现在会让用户选择“使用场景”，后端会按场景自动选择权重：
 
