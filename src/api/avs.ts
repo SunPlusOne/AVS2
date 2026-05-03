@@ -94,30 +94,3 @@ export async function getAdminLogs(token: string, params?: { limit?: number }): 
   return data
 }
 
-export async function adminUploadModel(
-  token: string,
-  payload: {
-    algorithm_id: string
-    name: string
-    version: string
-    description: string
-    input_size: string
-    enabled: boolean
-    weight_file: File
-  },
-): Promise<{ ok: true }> {
-  const form = new FormData()
-  form.append('algorithm_id', payload.algorithm_id)
-  form.append('name', payload.name)
-  form.append('version', payload.version)
-  form.append('description', payload.description)
-  form.append('input_size', payload.input_size)
-  form.append('enabled', String(payload.enabled))
-  form.append('file', payload.weight_file)
-
-  const { data } = await api.post<{ ok: true }>('/api/admin/models', form, {
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
-  })
-  return data
-}
-

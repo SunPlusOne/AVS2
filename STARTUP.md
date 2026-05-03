@@ -75,7 +75,6 @@ AVS_AVIS_ROOT=/root/autodl-tmp/avis
 - `AVS_WEIGHT_AVSEGFORMER_S4` 用于单个物体发声场景。
 - `AVS_WEIGHT_AVSEGFORMER_MS3` 用于多个物体同时发声场景。
 - 适配器会自动判断 checkpoint 属于 `pvt2` 还是 `res50`，无需额外指定。
-- 如果你通过管理员后台上传 AVSegFormer 权重，后台保存的 `weight_path` 也会自动进入本地权重回退链路。
 
 ---
 
@@ -102,18 +101,14 @@ npm.cmd run dev
 
 ---
 
-## 4. 管理员配置与模型上传
+## 4. 管理员配置
 
 ### 4.1 登录管理员后台
 - 访问：http://127.0.0.1:5173/admin
 - 默认密码：`admin` (可在 `api/config.py` 或环境变量 `AVS_ADMIN_PASSWORD` 中修改)
 
-### 4.2 上传模型权重 (.pth)
-1. 登录后进入 **模型权重管理**。
-2. 选择算法 (如 `avsegformer`) 和版本 (如 `v0`)。
-3. 上传你的 `.pth` 权重文件。
-4. 如果该算法需要场景路由（AVSegFormer / VCT / COMBO），首页还需要选择“单个物体发声”或“多个物体同时发声”。
-5. 上传成功后，普通用户即可在首页选择该算法进行推理。
+### 4.2 本地权重配置
+请通过 `.env` 显式配置各算法权重路径（例如 `AVS_WEIGHT_AVSEGFORMER_S4`、`AVS_WEIGHT_VCT_S4`、`AVS_WEIGHT_COMBO_S4`、`AVS_WEIGHT_AVIS`），并重启后端生效。
 
 ---
 

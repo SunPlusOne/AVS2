@@ -99,14 +99,13 @@ AVS_ENV_COMBO=/root/autodl-tmp/conda/envs/combo-avs
 
 处理：
 
-1. 在管理员后台上传 `.pth`。
-2. 或在 `.env` 增加显式路径，例如：
+1. 在 `.env` 增加显式路径，例如：
 
 ```ini
 AVS_WEIGHT_COMBO=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth
 ```
 
-3. 重启后端：
+2. 重启后端：
 
 ```bash
 ./scripts/backend_ctl.sh restart
@@ -151,7 +150,6 @@ AVS_AVSEGFORMER_VGGISH=/root/autodl-tmp/COMBO-AVS/pretrained/vggish-10086976.pth
 - `AVS_WEIGHT_AVSEGFORMER_S4` 对应单个物体发声场景。
 - `AVS_WEIGHT_AVSEGFORMER_MS3` 对应多个物体同时发声场景。
 - 适配器会自动从 checkpoint 判断 `pvt2/res50`，不需要手工指定 backbone。
-- 如果你已经把官方 checkpoint 上传到后台，`algorithms.json` 里的上传路径也会作为回退候选。
 
 改完后重启后端：
 
@@ -209,7 +207,7 @@ AVS_WEIGHT_AVIS=/root/autodl-tmp/avis/checkpoints/AVISM_SwinL_COCO.pth
 
 说明：
 
-- 你的 `AVISM_SwinL_COCO.pth` 可以先通过管理员后台上传，或手动放到服务器后写入 `AVS_WEIGHT_AVIS`。
+- 你的 `AVISM_SwinL_COCO.pth` 需要手动放到服务器并写入 `AVS_WEIGHT_AVIS`。
 - AVIS 当前走实例分割链路，不依赖首页的“单源/多源”场景选择。
 
 改完后重启后端：

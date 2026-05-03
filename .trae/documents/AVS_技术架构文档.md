@@ -54,7 +54,6 @@ graph TD
 - `GET /api/health`：健康检查
 
 管理员
-- `POST /api/admin/models`：上传模型权重（.pth）并注册
 - `GET /api/admin/logs`：查询系统日志（按时间/类型/状态筛选）
 
 WebSocket

@@ -80,6 +80,7 @@ function statusClass(status: string) {
 }
 
 function sceneLabel(task: TaskProgress) {
+  if (task.algorithm === 'avis') return '-'
   const scene = task.resolved_scene ?? task.scene
   if (scene === 'single_source') return '单个物体发声'
   if (scene === 'multi_source') return '多个物体同时发声'
