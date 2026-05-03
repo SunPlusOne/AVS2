@@ -18,7 +18,6 @@ class MediaMetadata:
     fps: Optional[float]
     total_frames: Optional[int]
     audio_energy: Optional[float]
-    recommended_scene: Optional[str]
 
 
 def _parse_fps(raw: str) -> Optional[float]:
@@ -111,13 +110,6 @@ def _extract_audio_energy(video_path: Path) -> Optional[float]:
     return max(0.0, min(1.0, energy))
 
 
-def recommended_scene_from_audio_energy(audio_energy: Optional[float]) -> str:
-    if audio_energy is None:
-        return "single_source"
-    # A lightweight rule-of-thumb threshold for auto scene selection.
-    return "multi_source" if audio_energy >= 0.52 else "single_source"
-
-
 def probe_video_metadata(video_path: Path) -> MediaMetadata:
     ffprobe_bin = shutil.which("ffprobe")
     duration_seconds: Optional[float] = None
@@ -166,7 +158,6 @@ def probe_video_metadata(video_path: Path) -> MediaMetadata:
             pass
 
     audio_energy = _extract_audio_energy(video_path)
-    recommended_scene = recommended_scene_from_audio_energy(audio_energy)
 
     return MediaMetadata(
         duration_seconds=duration_seconds,
@@ -175,5 +166,4 @@ def probe_video_metadata(video_path: Path) -> MediaMetadata:
         fps=fps,
         total_frames=total_frames,
         audio_energy=audio_energy,
-        recommended_scene=recommended_scene,
     )

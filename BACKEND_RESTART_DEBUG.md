@@ -46,6 +46,9 @@ curl -sS http://127.0.0.1:8000/api/health
 # 重启（最常用）
 ./scripts/backend_ctl.sh restart
 
+# 一键更新前端并重启后端（8000 页面不更新时用这个）
+cd /root/AVS2 && npm run build && ./scripts/backend_ctl.sh restart && ./scripts/backend_ctl.sh status
+
 # 查看运行状态
 ./scripts/backend_ctl.sh status
 
@@ -58,6 +61,11 @@ curl -sS http://127.0.0.1:8000/api/health
 # 前台运行（排查问题时很有用）
 ./scripts/backend_ctl.sh fg
 ```
+
+注意：
+
+- 不要在命令中间加 `&`（会把前一个任务放后台，导致后续顺序错乱）。
+- 不要写成 `backend_ctl.sh restart`，要写完整路径 `./scripts/backend_ctl.sh restart`。
 
 ## 4. 排错指南
 
@@ -269,6 +277,12 @@ cd /root/AVS2
 cd /root/AVS2
 ./scripts/backend_ctl.sh restart
 ./scripts/backend_ctl.sh status
+```
+
+如果你改了前端页面（`src/` 下文件），请用下面这条：
+
+```bash
+cd /root/AVS2 && npm run build && ./scripts/backend_ctl.sh restart && ./scripts/backend_ctl.sh status
 ```
 
 如果有异常，再开一个终端执行：

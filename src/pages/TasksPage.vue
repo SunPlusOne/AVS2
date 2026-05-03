@@ -83,7 +83,6 @@ function sceneLabel(task: TaskProgress) {
   const scene = task.resolved_scene ?? task.scene
   if (scene === 'single_source') return '单个物体发声'
   if (scene === 'multi_source') return '多个物体同时发声'
-  if (scene === 'auto_detect') return '自动检测'
   return '—'
 }
 

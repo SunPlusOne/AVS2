@@ -56,7 +56,6 @@ async def upload(file: UploadFile = File(...), settings: Settings = Depends(get_
                 "fps": meta.fps,
                 "total_frames": meta.total_frames,
                 "audio_energy": meta.audio_energy,
-                "recommended_scene": meta.recommended_scene,
             },
             ensure_ascii=False,
             indent=2,
@@ -74,5 +73,4 @@ async def upload(file: UploadFile = File(...), settings: Settings = Depends(get_
         fps=meta.fps,
         total_frames=meta.total_frames,
         audio_energy=meta.audio_energy,
-        recommended_scene=meta.recommended_scene,  # type: ignore[arg-type]
     )

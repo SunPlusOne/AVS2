@@ -106,8 +106,6 @@ class TaskManager:
         task_id = uuid.uuid4().hex
         upload_meta = self._load_upload_meta(file_id)
         resolved_scene = scene
-        if scene == "auto_detect":
-            resolved_scene = str(upload_meta.get("recommended_scene") or "single_source")
 
         metrics_payload = upload_meta.get("metrics")
         parsed_metrics: Optional[TaskMetrics] = None

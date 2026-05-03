@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 AlgorithmId = Literal["avsegformer", "avis", "vct", "combo"]
-SceneId = Literal["single_source", "multi_source", "auto_detect"]
+SceneId = Literal["single_source", "multi_source"]
 TaskStatus = Literal["queued", "running", "completed", "failed", "canceled"]
 
 
@@ -21,7 +21,6 @@ class UploadResponse(BaseModel):
     fps: Optional[float] = None
     total_frames: Optional[int] = None
     audio_energy: Optional[float] = None
-    recommended_scene: Optional[Literal["single_source", "multi_source"]] = None
 
 
 class TaskMetrics(BaseModel):

@@ -79,12 +79,6 @@ const mediaMetaText = computed(() => {
   return parts.join(' · ')
 })
 
-const sceneHintText = computed(() => {
-  const scene = uploadMeta.value?.recommended_scene
-  if (!scene) return ''
-  return scene === 'multi_source' ? '自动检测建议：多个物体同时发声' : '自动检测建议：单个物体发声'
-})
-
 const showMetaPanel = computed(() => Boolean(mediaMetaText.value))
 
 function openFileDialog() {
@@ -188,7 +182,6 @@ async function onUpload() {
       <div v-if="showMetaPanel" class="upload-meta-panel">
         <div class="upload-meta-title">视频信息</div>
         <div class="upload-meta-line">{{ mediaMetaText }}</div>
-        <div v-if="sceneHintText" class="upload-meta-line">{{ sceneHintText }}</div>
       </div>
 
       <el-button class="avs-btn-primary w-full" :disabled="uploadDisabled" :loading="loading" @click="onUpload">

@@ -35,7 +35,7 @@ const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
 const auth = useAuthStore()
 const selectedAlgorithms = ref<AlgorithmId[]>(['avsegformer', 'avis', 'vct', 'combo'])
-const selectedScene = ref<InferenceScene>('auto_detect')
+const selectedScene = ref<InferenceScene>('single_source')
 const launching = ref(false)
 
 const compareItems = ref<CompareItem[]>([])
@@ -325,12 +325,6 @@ onBeforeUnmount(() => {
               v-model="selectedScene"
               class="scene-group"
             >
-              <el-radio
-                label="auto_detect"
-                border
-              >
-                自动检测（推荐）
-              </el-radio>
               <el-radio
                 label="single_source"
                 border

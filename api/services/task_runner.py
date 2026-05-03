@@ -75,27 +75,23 @@ class TaskRunner:
             return None
         return value
 
-    async def _resolve_scene(self, *, task_id: str, file_id: str, scene: Optional[str], settings: Settings) -> str:
-        key = str(scene or "").strip().lower()
-        if key in {"single_source", "multi_source"}:
-            normalized = self._normalize_scene(key)
-            await self._manager.update(task_id, resolved_scene=normalized)
-            return normalized
+    async def _resolve_scene(
+        self,
+        *,
+        task_id: str,
+        algorithm: str,
+        file_id: str,
+        scene: Optional[str],
+        settings: Settings,
+    ) -> str:
+        if str(algorithm).strip().lower() == "avis":
+            fixed = "single_source"
+            await self._manager.update(task_id, resolved_scene=fixed)
+            return fixed
 
-        # auto_detect: prefer value already inferred during upload.
-        upload_meta_path = settings.uploads_dir / f"{file_id}.meta.json"
-        if upload_meta_path.exists():
-            try:
-                payload = json.loads(upload_meta_path.read_text(encoding="utf-8"))
-                recommended = self._normalize_scene(payload.get("recommended_scene"))
-                await self._manager.update(task_id, resolved_scene=recommended)
-                return recommended
-            except Exception:
-                pass
-
-        fallback = "single_source"
-        await self._manager.update(task_id, resolved_scene=fallback)
-        return fallback
+        normalized = self._normalize_scene(scene)
+        await self._manager.update(task_id, resolved_scene=normalized)
+        return normalized
 
     def _load_report(self, *, task_id: str, settings: Settings) -> dict[str, Any]:
         p = settings.results_dir / f"{task_id}.report.json"
@@ -416,7 +412,13 @@ class TaskRunner:
         start = time.time()
 
         settings = get_settings()
-        resolved_scene = await self._resolve_scene(task_id=task_id, file_id=file_id, scene=scene, settings=settings)
+        resolved_scene = await self._resolve_scene(
+            task_id=task_id,
+            algorithm=algorithm,
+            file_id=file_id,
+            scene=scene,
+            settings=settings,
+        )
         subset = self._scene_to_subset(resolved_scene)
 
         weight_path, checked_weight_paths = self._resolve_weight_path(

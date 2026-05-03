@@ -1,5 +1,5 @@
 export type AlgorithmId = 'avsegformer' | 'avis' | 'vct' | 'combo'
-export type InferenceScene = 'single_source' | 'multi_source' | 'auto_detect'
+export type InferenceScene = 'single_source' | 'multi_source'
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
 export type UserRole = 'admin' | 'user'
 
@@ -13,7 +13,6 @@ export interface UploadResponse {
   fps?: number
   total_frames?: number
   audio_energy?: number
-  recommended_scene?: 'single_source' | 'multi_source'
 }
 
 export interface CreateTaskRequest {

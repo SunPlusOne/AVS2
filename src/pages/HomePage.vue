@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as VideoUploadCardModule from '@/components/VideoUploadCard.vue'
 import * as TaskProgressCardModule from '@/components/TaskProgressCard.vue'
 import * as ResultViewerCardModule from '@/components/ResultViewerCard.vue'
 import { createTask, cancelTask, getTask } from '@/api/avs'
 import { getWsBaseUrl } from '@/api/http'
-import { useAlgorithmsStore } from '@/stores/algorithms'
 import { useTasksStore } from '@/stores/tasks'
 import type { AlgorithmId, InferenceScene, TaskProgress, UploadResponse } from '@/types/contracts'
 
@@ -14,13 +13,19 @@ const VideoUploadCard = (VideoUploadCardModule as any).default ?? VideoUploadCar
 const TaskProgressCard = (TaskProgressCardModule as any).default ?? TaskProgressCardModule
 const ResultViewerCard = (ResultViewerCardModule as any).default ?? ResultViewerCardModule
 
-const algorithms = useAlgorithmsStore()
 const tasksStore = useTasksStore()
+
+const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
+  { id: 'avsegformer', label: 'AVSegFormer' },
+  { id: 'avis', label: 'AVIS' },
+  { id: 'vct', label: 'VCT' },
+  { id: 'combo', label: 'COMBO' },
+]
 
 const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
 const selectedAlgorithm = ref<AlgorithmId>('combo')
-const selectedScene = ref<InferenceScene>('auto_detect')
+const selectedScene = ref<InferenceScene>('single_source')
 const currentTask = ref<TaskProgress | null>(null)
 
 const starting = ref(false)
@@ -28,9 +33,7 @@ const wsRef = ref<WebSocket | null>(null)
 let pollTimer: number | null = null
 
 const canStart = computed(() => !!uploaded.value?.file_id && !starting.value)
-const needsSceneSelection = computed(
-  () => selectedAlgorithm.value === 'combo' || selectedAlgorithm.value === 'vct' || selectedAlgorithm.value === 'avsegformer',
-)
+const needsSceneSelection = computed(() => selectedAlgorithm.value !== 'avis')
 
 const startDisabledReason = computed(() => {
   if (starting.value) return '任务启动中，请稍候'
@@ -42,11 +45,6 @@ const startDisabledReason = computed(() => {
 function onUploaded(payload: { file: File; res: UploadResponse }) {
   uploaded.value = payload.res
   originalFile.value = payload.file
-
-  if (payload.res.recommended_scene && selectedScene.value === 'auto_detect') {
-    // Keep auto mode selected; resolved scene is displayed in task status from backend.
-    selectedScene.value = 'auto_detect'
-  }
 }
 
 function onSelectedFile(file: File) {
@@ -120,12 +118,7 @@ async function startTask() {
       progress: 0,
       algorithm: selectedAlgorithm.value,
       scene: needsSceneSelection.value ? selectedScene.value : undefined,
-      resolved_scene:
-        selectedScene.value === 'multi_source'
-          ? 'multi_source'
-          : selectedScene.value === 'single_source'
-            ? 'single_source'
-            : uploaded.value.recommended_scene,
+      resolved_scene: needsSceneSelection.value ? selectedScene.value : undefined,
       filename: uploaded.value.filename,
       fps: uploaded.value.fps,
       duration_seconds: uploaded.value.duration_seconds,
@@ -156,12 +149,6 @@ async function onCancel() {
   }
 }
 
-onMounted(async () => {
-  await algorithms.refresh()
-  const preferred = algorithms.enabledItems.find((a) => a.id === 'combo') ?? algorithms.enabledItems[0]
-  if (preferred) selectedAlgorithm.value = preferred.id
-})
-
 onBeforeUnmount(() => {
   cleanupRealtime()
 })
@@ -177,7 +164,7 @@ onBeforeUnmount(() => {
 
       <div class="avs-card">
         <div class="avs-card-title">算法选择</div>
-        <div class="avs-card-desc">选择模型后，再选择使用场景。系统会自动匹配对应权重。</div>
+        <div class="avs-card-desc">AVIS 直接推理，无需场景；其他算法请手动选择场景。</div>
         <div class="mt-4">
           <el-select
             class="avs-select w-full"
@@ -187,22 +174,17 @@ onBeforeUnmount(() => {
             placeholder="请选择算法"
           >
             <el-option
-              v-for="a in algorithms.items"
-              :key="a.id"
-              :label="`${a.name}${a.enabled ? '' : '（不可用）'}`"
-              :value="a.id"
-              :disabled="!a.enabled"
+              v-for="algo in allAlgorithms"
+              :key="algo.id"
+              :label="algo.label"
+              :value="algo.id"
             />
           </el-select>
-          <div v-if="algorithms.error" class="algo-error">{{ algorithms.error }}</div>
         </div>
 
         <div v-if="needsSceneSelection" class="mt-4">
           <div class="scene-title">使用场景</div>
           <el-radio-group v-model="selectedScene" class="scene-group">
-            <el-radio label="auto_detect" border>
-              自动检测（推荐，按音频能量阈值判断）
-            </el-radio>
             <el-radio label="single_source" border>
               单个物体发声（画面中只有一个物体在发声）
             </el-radio>
@@ -239,7 +221,7 @@ onBeforeUnmount(() => {
           <div class="avs-note-title">说明</div>
         </div>
         <div class="mt-1 avs-note-desc">
-          当前支持 AVSegFormer、AVIS、VCT 和 COMBO 的本地推理。系统会根据“使用场景”自动选择对应权重。
+          当前支持 AVSegFormer、AVIS、VCT 和 COMBO 的本地推理。请按实际视频内容手动选择“使用场景”。
           语义分割权重（AVSS）暂不在本页面开放。
         </div>
       </div>
