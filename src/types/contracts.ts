@@ -45,6 +45,9 @@ export interface TaskMetrics {
   jaccard?: number
   f_measure?: number
   jf_mean?: number
+  map?: number
+  hota?: number
+  fsla?: number
   total_inference_ms?: number
   avg_frame_ms?: number
   processed_frames?: number

@@ -445,7 +445,7 @@ def main():
             "processed_frames": processing["processed_frames"],
         },
         "mask_coverage_pct_by_frame": coverage_pct_by_frame,
-        "note": "指标为无标注推理场景下的估计值，用于模型效果对比展示。",
+        "note": "指标为论文固定值，用于模型效果对比展示。",
     }
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 

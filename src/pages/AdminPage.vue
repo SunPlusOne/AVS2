@@ -10,10 +10,10 @@ const logs = ref<{ ts: string; level: string; message: string }[]>([])
 const loadingLogs = ref(false)
 
 const benchmarkRows = [
-  { model: 'AVSegFormer', s4_jf: '78.4%', ms3_jf: '54.0%', avis_metric: '--', params: '47M', speed: '~50ms/帧' },
-  { model: 'VCT', s4_jf: '81.2%', ms3_jf: '58.3%', avis_metric: '--', params: '52M', speed: '~80ms/帧' },
-  { model: 'COMBO', s4_jf: '83.1%', ms3_jf: '61.7%', avis_metric: '--', params: '68M', speed: '~100ms/帧' },
-  { model: 'AVIS', s4_jf: '-', ms3_jf: '-', avis_metric: '52.49 / 71.13 / 53.46', params: '-', speed: '-' },
+  { model: 'AVSegFormer', s4_jf: '78.7%', ms3_jf: '54.0%', avis_metric: '--', params: '47M', speed: '~50ms/帧' },
+  { model: 'VCT', s4_jf: '86.2%', ms3_jf: '67.6%', avis_metric: '--', params: '52M', speed: '~80ms/帧' },
+  { model: 'COMBO', s4_jf: '84.7%', ms3_jf: '59.2%', avis_metric: '--', params: '68M', speed: '~100ms/帧' },
+  { model: 'AVIS', s4_jf: '-', ms3_jf: '-', avis_metric: '42.78 / 61.73 / 40.57', params: '-', speed: '-' },
 ]
 
 const authed = computed(() => auth.isLoggedIn && auth.isAdmin)

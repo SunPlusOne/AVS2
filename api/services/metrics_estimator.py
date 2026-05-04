@@ -1,14 +1,25 @@
 from __future__ import annotations
 
-from statistics import mean
 from typing import Iterable, Optional
 
 
-_BENCHMARK_PRIORS = {
-    "avsegformer": {"s4": 78.4, "ms3": 54.0},
-    "avis": {"coco": 53.5, "s4": 53.5},
-    "vct": {"s4": 81.2, "ms3": 58.3},
-    "combo": {"s4": 83.1, "ms3": 61.7},
+_FIXED_METRICS = {
+    "combo": {
+        "s4": {"jaccard": 84.7, "f_measure": 91.9, "jf_mean": 88.3},
+        "ms3": {"jaccard": 59.2, "f_measure": 71.2, "jf_mean": 65.2},
+    },
+    "avsegformer": {
+        "s4": {"jaccard": 78.7, "f_measure": 87.9, "jf_mean": 83.3},
+        "ms3": {"jaccard": 54.0, "f_measure": 64.5, "jf_mean": 59.25},
+    },
+    "vct": {
+        "s4": {"jaccard": 86.2, "f_measure": 93.4, "jf_mean": 89.8},
+        "ms3": {"jaccard": 67.6, "f_measure": 81.4, "jf_mean": 74.5},
+    },
+    "avis": {
+        "coco": {"map": 40.57, "hota": 61.73, "fsla": 42.78},
+        "default": {"map": 40.57, "hota": 61.73, "fsla": 42.78},
+    },
 }
 
 
@@ -20,12 +31,6 @@ def _round2(value: float) -> float:
     return round(float(value), 2)
 
 
-def _safe_mean(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    return float(mean(values))
-
-
 def estimate_metrics(
     *,
     algorithm: str,
@@ -34,47 +39,23 @@ def estimate_metrics(
 ) -> dict[str, float]:
     algo_key = str(algorithm or "").strip().lower()
     subset_key = str(subset or "").strip().lower() or "s4"
-    prior = _BENCHMARK_PRIORS.get(algo_key, {}).get(subset_key)
-    if prior is None:
-        prior = _BENCHMARK_PRIORS.get(algo_key, {}).get("s4", 68.0)
+    _ = coverage_pct_by_frame  # 保留参数兼容调用方；指标改为固定论文值。
 
-    coverage = [float(x) for x in (coverage_pct_by_frame or [])]
-    coverage = [x for x in coverage if x >= 0]
+    by_algo = _FIXED_METRICS.get(algo_key, {})
+    if algo_key == "avis":
+        picked = by_algo.get(subset_key) or by_algo.get("default")
+        if isinstance(picked, dict):
+            return {k: _round2(v) for k, v in picked.items()}
+        return {"map": 40.57, "hota": 61.73, "fsla": 42.78}
 
-    if not coverage:
-        j = _clamp(prior - 1.8, 20.0, 95.0)
-        f = _clamp(prior + 1.8, 20.0, 95.0)
-        jf = (j + f) / 2.0
-        return {
-            "jaccard": _round2(j),
-            "f_measure": _round2(f),
-            "jf_mean": _round2(jf),
-        }
-
-    valid_ratio = sum(1 for x in coverage if x > 0.5) / len(coverage)
-    mean_cov = _safe_mean(coverage)
-    diffs = [abs(coverage[idx] - coverage[idx - 1]) for idx in range(1, len(coverage))]
-    temporal_jitter = (_safe_mean(diffs) / 100.0) if diffs else 0.0
-    stability = _clamp(1.0 - temporal_jitter, 0.0, 1.0)
-
-    # Empirical quality term: masks that are neither too sparse nor too dominant are preferred.
-    coverage_quality = _clamp(1.0 - abs(mean_cov - 18.0) / 30.0, 0.0, 1.0)
-    activity_quality = _clamp(0.55 * valid_ratio + 0.45 * coverage_quality, 0.0, 1.0)
-
-    scale = 0.88 + 0.16 * activity_quality + 0.06 * stability
-    jf = _clamp(prior * scale, 25.0, 95.0)
-
-    jf_gap = 1.4
-    j = _clamp(jf - jf_gap - (1.0 - stability) * 1.8, 20.0, 95.0)
-    f = _clamp(jf + jf_gap + stability * 1.2, 20.0, 95.0)
-
-    # Keep jf aligned to the reported J/F pair.
-    jf = (j + f) / 2.0
+    picked = by_algo.get(subset_key) or by_algo.get("s4")
+    if isinstance(picked, dict):
+        return {k: _round2(v) for k, v in picked.items()}
 
     return {
-        "jaccard": _round2(j),
-        "f_measure": _round2(f),
-        "jf_mean": _round2(jf),
+        "jaccard": _round2(_clamp(68.0, 20.0, 95.0)),
+        "f_measure": _round2(_clamp(71.0, 20.0, 95.0)),
+        "jf_mean": _round2(_clamp(69.5, 20.0, 95.0)),
     }
 
 

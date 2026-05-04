@@ -121,6 +121,18 @@ class TaskRunner:
         if jf_mean is None:
             jf_mean = self._to_float(metrics.get("J&F"))
 
+        map_score = self._to_float(metrics.get("map"))
+        if map_score is None:
+            map_score = self._to_float(metrics.get("mAP"))
+
+        hota = self._to_float(metrics.get("hota"))
+        if hota is None:
+            hota = self._to_float(metrics.get("HOTA"))
+
+        fsla = self._to_float(metrics.get("fsla"))
+        if fsla is None:
+            fsla = self._to_float(metrics.get("FSLA"))
+
         total_inference_ms = self._to_int(processing.get("total_ms"))
         if total_inference_ms is None:
             total_inference_ms = self._to_int(metrics.get("total_inference_ms"))
@@ -143,13 +155,24 @@ class TaskRunner:
         if avg_frame_ms is None and processed_frames:
             avg_frame_ms = float(total_inference_ms) / float(processed_frames)
 
-        if jaccard is None and f_measure is None and jf_mean is None and not processed_frames:
+        if (
+            jaccard is None
+            and f_measure is None
+            and jf_mean is None
+            and map_score is None
+            and hota is None
+            and fsla is None
+            and not processed_frames
+        ):
             return None
 
         return TaskMetrics(
             jaccard=jaccard,
             f_measure=f_measure,
             jf_mean=jf_mean,
+            map=map_score,
+            hota=hota,
+            fsla=fsla,
             total_inference_ms=total_inference_ms,
             avg_frame_ms=avg_frame_ms,
             processed_frames=processed_frames,

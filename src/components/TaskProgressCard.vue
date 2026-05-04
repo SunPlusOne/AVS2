@@ -69,10 +69,29 @@ function formatTime(totalMs?: number, avgFrameMs?: number): string {
 const metricsCards = computed(() => {
   const metrics = props.task?.metrics
   if (!props.task || props.task.status !== 'completed') return []
+  if (props.task.algorithm === 'avis') {
+    return [
+      { label: 'FSLA', value: formatPct(metrics?.fsla) },
+      { label: 'HOTA', value: formatPct(metrics?.hota) },
+      { label: 'mAP', value: formatPct(metrics?.map) },
+      {
+        label: '推理耗时',
+        value: formatTime(metrics?.total_inference_ms, metrics?.avg_frame_ms),
+      },
+      {
+        label: '处理帧数',
+        value:
+          metrics?.processed_frames != null
+            ? `${metrics.processed_frames} 帧`
+            : props.task.total_frames != null
+              ? `${props.task.total_frames} 帧`
+              : '--',
+      },
+    ]
+  }
   return [
     { label: 'J (Jaccard)', value: formatPct(metrics?.jaccard) },
     { label: 'F (F-measure)', value: formatPct(metrics?.f_measure) },
-    { label: 'J&F 均值', value: formatPct(metrics?.jf_mean) },
     {
       label: '推理耗时',
       value: formatTime(metrics?.total_inference_ms, metrics?.avg_frame_ms),

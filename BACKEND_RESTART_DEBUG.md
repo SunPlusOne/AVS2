@@ -138,7 +138,7 @@ chmod +x scripts/setup_avsegformer_env.sh
 然后在 `.env` 增加以下配置（按你的实际路径调整）：
 
 ```ini
-AVS_ENV_AVSEGFORMER=/root/AVS2/.venv-avsegformer
+AVS_ENV_AVSEGFORMER=/root/autodl-tmp/conda/envs/avsegformer
 AVS_AVSEGFORMER_ROOT=/root/AVS2/api/third_party/AVSegFormer
 AVS_AVSEGFORMER_VGGISH=/root/autodl-tmp/COMBO-AVS/pretrained/vggish-10086976.pth
 # AVS_WEIGHT_AVSEGFORMER_S4=/root/AVS2/api/data/models/avsegformer/s4/S4_best.pth

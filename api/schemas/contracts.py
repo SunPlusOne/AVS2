@@ -27,6 +27,9 @@ class TaskMetrics(BaseModel):
     jaccard: Optional[float] = None
     f_measure: Optional[float] = None
     jf_mean: Optional[float] = None
+    map: Optional[float] = None
+    hota: Optional[float] = None
+    fsla: Optional[float] = None
     total_inference_ms: Optional[int] = None
     avg_frame_ms: Optional[float] = None
     processed_frames: Optional[int] = None

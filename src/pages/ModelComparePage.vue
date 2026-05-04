@@ -76,12 +76,25 @@ const hasFinishedResult = computed(() => compareItems.value.some((item) => item.
 const chartRows = computed(() => {
   return compareItems.value
     .filter((item) => item.status === 'completed')
-    .map((item) => ({
-      algorithm: item.algorithm,
-      jaccard: item.metrics?.jaccard ?? 0,
-      f_measure: item.metrics?.f_measure ?? 0,
-      jf_mean: item.metrics?.jf_mean ?? 0,
-    }))
+    .map((item) => {
+      if (item.algorithm === 'avis') {
+        return {
+          algorithm: item.algorithm,
+          metrics: [
+            { label: 'FSLA', value: item.metrics?.fsla ?? 0, cls: 'bar-fsla' },
+            { label: 'HOTA', value: item.metrics?.hota ?? 0, cls: 'bar-hota' },
+            { label: 'mAP', value: item.metrics?.map ?? 0, cls: 'bar-map' },
+          ],
+        }
+      }
+      return {
+        algorithm: item.algorithm,
+        metrics: [
+          { label: 'J', value: item.metrics?.jaccard ?? 0, cls: 'bar-j' },
+          { label: 'F', value: item.metrics?.f_measure ?? 0, cls: 'bar-f' },
+        ],
+      }
+    })
 })
 
 function onUploaded(payload: { file: File; res: UploadResponse }) {
@@ -461,30 +474,50 @@ onBeforeUnmount(() => {
               v-if="item.status === 'completed'"
               class="metric-grid"
             >
-              <div class="metric-cell">
-                <div class="metric-label">
-                  J
+              <template v-if="item.algorithm === 'avis'">
+                <div class="metric-cell">
+                  <div class="metric-label">
+                    FSLA
+                  </div>
+                  <div class="metric-value">
+                    {{ formatPct(item.metrics?.fsla) }}
+                  </div>
                 </div>
-                <div class="metric-value">
-                  {{ formatPct(item.metrics?.jaccard) }}
+                <div class="metric-cell">
+                  <div class="metric-label">
+                    HOTA
+                  </div>
+                  <div class="metric-value">
+                    {{ formatPct(item.metrics?.hota) }}
+                  </div>
                 </div>
-              </div>
-              <div class="metric-cell">
-                <div class="metric-label">
-                  F
+                <div class="metric-cell">
+                  <div class="metric-label">
+                    mAP
+                  </div>
+                  <div class="metric-value">
+                    {{ formatPct(item.metrics?.map) }}
+                  </div>
                 </div>
-                <div class="metric-value">
-                  {{ formatPct(item.metrics?.f_measure) }}
+              </template>
+              <template v-else>
+                <div class="metric-cell">
+                  <div class="metric-label">
+                    J
+                  </div>
+                  <div class="metric-value">
+                    {{ formatPct(item.metrics?.jaccard) }}
+                  </div>
                 </div>
-              </div>
-              <div class="metric-cell">
-                <div class="metric-label">
-                  J&F
+                <div class="metric-cell">
+                  <div class="metric-label">
+                    F
+                  </div>
+                  <div class="metric-value">
+                    {{ formatPct(item.metrics?.f_measure) }}
+                  </div>
                 </div>
-                <div class="metric-value">
-                  {{ formatPct(item.metrics?.jf_mean) }}
-                </div>
-              </div>
+              </template>
               <div class="metric-cell">
                 <div class="metric-label">
                   耗时
@@ -505,7 +538,7 @@ onBeforeUnmount(() => {
             模型指标柱状对比
           </div>
           <div class="avs-card-desc">
-            按当前对比任务计算的 J、F、J&F 数值展示
+            按当前对比任务展示指标：AVS 模型显示 J/F，AVIS 显示 FSLA/HOTA/mAP
           </div>
 
           <div class="chart-wrap">
@@ -518,37 +551,20 @@ onBeforeUnmount(() => {
                 {{ row.algorithm.toUpperCase() }}
               </div>
 
-              <div class="bar-line">
-                <span class="bar-label">J</span>
+              <div
+                v-for="metric in row.metrics"
+                :key="`${row.algorithm}-${metric.label}`"
+                class="bar-line"
+              >
+                <span class="bar-label">{{ metric.label }}</span>
                 <div class="bar-track">
                   <div
-                    class="bar-fill bar-j"
-                    :style="{ width: `${Math.max(0, Math.min(100, row.jaccard))}%` }"
+                    class="bar-fill"
+                    :class="metric.cls"
+                    :style="{ width: `${Math.max(0, Math.min(100, metric.value))}%` }"
                   />
                 </div>
-                <span class="bar-value">{{ formatPct(row.jaccard) }}</span>
-              </div>
-
-              <div class="bar-line">
-                <span class="bar-label">F</span>
-                <div class="bar-track">
-                  <div
-                    class="bar-fill bar-f"
-                    :style="{ width: `${Math.max(0, Math.min(100, row.f_measure))}%` }"
-                  />
-                </div>
-                <span class="bar-value">{{ formatPct(row.f_measure) }}</span>
-              </div>
-
-              <div class="bar-line">
-                <span class="bar-label">J&F</span>
-                <div class="bar-track">
-                  <div
-                    class="bar-fill bar-jf"
-                    :style="{ width: `${Math.max(0, Math.min(100, row.jf_mean))}%` }"
-                  />
-                </div>
-                <span class="bar-value">{{ formatPct(row.jf_mean) }}</span>
+                <span class="bar-value">{{ formatPct(metric.value) }}</span>
               </div>
             </div>
           </div>
@@ -748,8 +764,16 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, #0891b2, #22d3ee);
 }
 
-.bar-jf {
+.bar-fsla {
   background: linear-gradient(90deg, #059669, #34d399);
+}
+
+.bar-hota {
+  background: linear-gradient(90deg, #b45309, #f59e0b);
+}
+
+.bar-map {
+  background: linear-gradient(90deg, #7c3aed, #a78bfa);
 }
 
 .bar-value {

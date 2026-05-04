@@ -597,7 +597,7 @@ def main() -> None:
             "processed_frames": processing["processed_frames"],
         },
         "mask_coverage_pct_by_frame": coverage_pct_by_frame,
-        "note": f"AVIS inference done with config={config_path.name}; 指标为无标注场景估计值。",
+        "note": f"AVIS inference done with config={config_path.name}; 指标为论文固定值。",
     }
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
