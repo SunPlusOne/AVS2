@@ -13,6 +13,7 @@ import wave
 import numpy as np
 import cv2
 from pathlib import Path
+import torch
 
 # Add project root to sys.path to import modules
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -162,10 +163,56 @@ def build_audio_feature(video_path: str, num_frames: int) -> np.ndarray:
                 pass
 
 
-def choose_combo_config(weight_path: Path) -> Path:
+def _resolve_subset(explicit_subset: str, weight_path: Path) -> str:
+    subset = str(explicit_subset or "").strip().lower()
+    if subset in {"s4", "ms3"}:
+        return subset
+
     weight_lower = str(weight_path).lower()
-    use_ms3 = "avs_ms3" in weight_lower or "/ms3/" in weight_lower
-    use_pvt = "pvt" in weight_lower
+    return "ms3" if ("avs_ms3" in weight_lower or "/ms3/" in weight_lower) else "s4"
+
+
+def _unwrap_state_dict(payload: object) -> dict:
+    if isinstance(payload, dict):
+        for key in ("model", "state_dict", "model_state_dict", "net", "weights"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                return value
+        if all(isinstance(k, str) for k in payload.keys()):
+            return payload
+    return {}
+
+
+def detect_combo_backbone(weight_path: Path) -> str:
+    """Best-effort backbone detection from checkpoint keys: returns 'pvt2' or 'res50'."""
+    try:
+        payload = torch.load(str(weight_path), map_location="cpu")
+        state = _unwrap_state_dict(payload)
+        if not state:
+            return "res50"
+
+        keys = list(state.keys())
+        has_pvt = any(("patch_embed" in k) or (".attn." in k) for k in keys)
+        has_res = any((".res2." in k) or ("stem.conv1" in k) for k in keys)
+        if has_pvt and not has_res:
+            return "pvt2"
+        if has_res and not has_pvt:
+            return "res50"
+
+        lower = str(weight_path).lower()
+        if "pvt" in lower:
+            return "pvt2"
+    except Exception as exc:
+        print(f"Warning: backbone detect failed for {weight_path}: {exc}")
+
+    return "res50"
+
+
+def choose_combo_config(weight_path: Path, subset: str = "") -> Path:
+    resolved_subset = _resolve_subset(subset, weight_path)
+    backbone = detect_combo_backbone(weight_path)
+    use_ms3 = resolved_subset == "ms3"
+    use_pvt = backbone == "pvt2"
 
     if use_ms3:
         config_name = "COMBO_PVTV2B5_bs8_20k.yaml" if use_pvt else "COMBO_R50_bs8_20k.yaml"
@@ -175,6 +222,7 @@ def choose_combo_config(weight_path: Path) -> Path:
         config_path = COMBO_ROOT / "configs" / "avs_s4" / config_name
 
     if config_path.is_file():
+        print(f"[combo] detected_backbone={backbone}")
         return config_path
 
     fallback = COMBO_ROOT / "configs" / "avs_s4" / "COMBO_R50_bs8_90k.yaml"
@@ -286,6 +334,7 @@ def main():
     parser.add_argument("--task_id", required=True, help="Task ID")
     parser.add_argument("--file_id", required=True, help="Uploaded file ID")
     parser.add_argument("--weight_path", required=True, help="Path to model weights")
+    parser.add_argument("--subset", default="", help="Subset in {s4, ms3}; prefer explicit value")
     parser.add_argument("--uploads_dir", required=True, help="Uploads directory")
     parser.add_argument("--results_dir", required=True, help="Results directory")
     parser.add_argument("--masks_dir", required=True, help="Masks directory")
@@ -300,6 +349,8 @@ def main():
     runtime_device = resolve_runtime_device()
     runtime_info = get_torch_runtime_info(runtime_device)
     print(f"[runtime] {format_runtime_info(runtime_info)}")
+    subset = _resolve_subset(args.subset, weight_path)
+    print(f"[combo] resolved_subset={subset}")
     
     uploads_dir = Path(args.uploads_dir)
     results_dir = Path(args.results_dir)
@@ -314,7 +365,7 @@ def main():
     
     print(f"Loading model from {weight_path}...")
     try:
-        config_path = choose_combo_config(weight_path)
+        config_path = choose_combo_config(weight_path, subset=subset)
         print(f"Using COMBO config: {config_path}")
         adapter = ComboAdapter(config_path=str(config_path))
         adapter.load_weights(str(weight_path), device=runtime_device)
@@ -373,7 +424,6 @@ def main():
         overlay_tmp_path.rename(result_path)
         print(f"Overlay video saved (mp4v fallback): {result_path}, non-empty masks: {non_empty_masks}/{len(frames)}")
     
-    subset = "ms3" if ("avs_ms3" in str(weight_path).lower() or "/ms3/" in str(weight_path).lower()) else "s4"
     total_ms = int((time.time() - started) * 1000)
     processing = build_processing_metrics(total_ms, len(frames))
     metrics = estimate_metrics(algorithm="combo", subset=subset, coverage_pct_by_frame=coverage_pct_by_frame)

@@ -8,9 +8,6 @@ from typing import Iterable, List
 import cv2
 import numpy as np
 import torch
-from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.config import get_cfg
-from detectron2.projects.deeplab import add_deeplab_config
 
 from api.models.device_utils import (
     ensure_model_on_device,
@@ -53,8 +50,25 @@ def _resolve_vct_root() -> Path:
 
 
 VCT_ROOT = _resolve_vct_root()
-if str(VCT_ROOT) not in sys.path:
-    sys.path.insert(0, str(VCT_ROOT))
+_vct_root_str = str(VCT_ROOT)
+_vct_detectron2_repo = VCT_ROOT / "detectron2"
+if _vct_detectron2_repo.is_dir():
+    _vct_detectron2_repo_str = str(_vct_detectron2_repo)
+    if _vct_detectron2_repo_str not in sys.path:
+        sys.path.insert(0, _vct_detectron2_repo_str)
+if _vct_root_str not in sys.path:
+    sys.path.insert(0, _vct_root_str)
+
+# Avoid importing detectron2 from COMBO-AVS only when VCT ships its own detectron2 tree.
+if _vct_detectron2_repo.is_dir():
+    for _idx in range(len(sys.path) - 1, -1, -1):
+        _p = str(sys.path[_idx])
+        if "COMBO-AVS" in _p and _p != _vct_detectron2_repo_str:
+            sys.path.pop(_idx)
+
+from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.config import get_cfg
+from detectron2.projects.deeplab import add_deeplab_config
 
 from models import add_audio_config, add_fuse_config, add_maskformer2_config
 from train_net import Trainer

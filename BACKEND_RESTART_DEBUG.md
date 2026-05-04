@@ -102,7 +102,7 @@ AVS_ENV_COMBO=/root/autodl-tmp/conda/envs/combo-avs
 1. 在 `.env` 增加显式路径，例如：
 
 ```ini
-AVS_WEIGHT_COMBO=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth
+AVS_WEIGHT_COMBO=/root/AVS2/api/data/models/combo/s4/model_best.pth
 ```
 
 2. 重启后端：
@@ -167,7 +167,7 @@ cd /root/AVS2
 ```ini
 AVS_ENV_VCT=/root/autodl-tmp/conda/envs/vct_avs
 AVS_VCT_ROOT=/root/autodl-tmp/VCT_AVS
-AVS_WEIGHT_VCT=/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth
+AVS_WEIGHT_VCT=/root/AVS2/api/data/models/vct/s4/model_best.pth
 ```
 
 如果你要切换 `ms3/ss`，把 `AVS_WEIGHT_VCT` 改为对应 `model_best.pth` 路径后重启后端。
@@ -254,10 +254,10 @@ curl -sS http://127.0.0.1:8000/api/health
 ```ini
 AVS_WEIGHT_AVSEGFORMER_S4=/root/AVS2/api/data/models/avsegformer/s4/S4_best.pth
 AVS_WEIGHT_AVSEGFORMER_MS3=/root/AVS2/api/data/models/avsegformer/ms3/MS3_best.pth
-AVS_WEIGHT_COMBO_S4=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_s4/COMBO_R50_bs8_80k/model_best.pth
-AVS_WEIGHT_COMBO_MS3=/root/autodl-tmp/COMBO-AVS/checkpoints/avs_ms3/COMBO_R50_bs8_20k/model_best.pth
-AVS_WEIGHT_VCT_S4=/root/autodl-tmp/VCT_AVS/output/s4_swinb_384/model_best.pth
-AVS_WEIGHT_VCT_MS3=/root/autodl-tmp/VCT_AVS/output/ms3_swinb_384/model_best.pth
+AVS_WEIGHT_COMBO_S4=/root/AVS2/api/data/models/combo/s4/model_best.pth
+AVS_WEIGHT_COMBO_MS3=/root/AVS2/api/data/models/combo/ms3/model_best.pth
+AVS_WEIGHT_VCT_S4=/root/AVS2/api/data/models/vct/s4/model_best.pth
+AVS_WEIGHT_VCT_MS3=/root/AVS2/api/data/models/vct/ms3/model_best.pth
 ```
 
 改完后执行：

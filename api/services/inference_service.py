@@ -309,7 +309,7 @@ class InferenceService:
             "--results_dir", str(self._results_dir),
             "--masks_dir", str(self._masks_dir),
         ]
-        if algorithm in {"vct", "avsegformer"} and subset:
+        if algorithm in {"combo", "vct", "avsegformer"} and subset:
             cmd.extend(["--subset", subset])
         
         self._logger.info(f"Starting subprocess (timeout={infer_timeout_sec}s): {' '.join(cmd)}")
