@@ -6,6 +6,7 @@ import * as TaskProgressCardModule from '@/components/TaskProgressCard.vue'
 import * as ResultViewerCardModule from '@/components/ResultViewerCard.vue'
 import { createTask, cancelTask, getTask } from '@/api/avs'
 import { getWsBaseUrl } from '@/api/http'
+import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import type { AlgorithmId, InferenceScene, TaskProgress, UploadResponse } from '@/types/contracts'
 
@@ -14,6 +15,7 @@ const TaskProgressCard = (TaskProgressCardModule as any).default ?? TaskProgress
 const ResultViewerCard = (ResultViewerCardModule as any).default ?? ResultViewerCardModule
 
 const tasksStore = useTasksStore()
+const authStore = useAuthStore()
 
 const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
   { id: 'avsegformer', label: 'AVSegFormer' },
@@ -79,7 +81,9 @@ function attachPolling(taskId: string) {
 
 function attachWebSocket(taskId: string) {
   const wsBase = getWsBaseUrl()
-  const ws = new WebSocket(`${wsBase}/ws/tasks/${encodeURIComponent(taskId)}/progress`)
+  const token = authStore.token
+  const suffix = token ? `?token=${encodeURIComponent(token)}` : ''
+  const ws = new WebSocket(`${wsBase}/ws/tasks/${encodeURIComponent(taskId)}/progress${suffix}`)
   wsRef.value = ws
 
   ws.onmessage = (ev) => {

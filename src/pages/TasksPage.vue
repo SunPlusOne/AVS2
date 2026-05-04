@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getTask } from '@/api/avs'
+import { ElMessage } from 'element-plus'
+import { listTasks } from '@/api/avs'
+import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import type { TaskProgress, TaskStatus } from '@/types/contracts'
 
 const router = useRouter()
+const auth = useAuthStore()
 const store = useTasksStore()
 
 const filterAlgorithm = ref<'all' | string>('all')
 const filterStatus = ref<'all' | TaskStatus>('all')
+const filterOwner = ref<'all' | string>('all')
+const loadingHistory = ref(false)
+
+const isAdmin = computed(() => auth.isAdmin)
 
 const rows = computed(() => store.items)
 
@@ -25,8 +32,17 @@ const filteredRows = computed(() => {
   return rows.value.filter((row) => {
     const byAlgorithm = filterAlgorithm.value === 'all' || row.algorithm === filterAlgorithm.value
     const byStatus = filterStatus.value === 'all' || row.status === filterStatus.value
-    return byAlgorithm && byStatus
+    const byOwner = !isAdmin.value || filterOwner.value === 'all' || row.owner_username === filterOwner.value
+    return byAlgorithm && byStatus && byOwner
   })
+})
+
+const ownerOptions = computed(() => {
+  const set = new Set<string>()
+  for (const row of rows.value) {
+    if (row.owner_username) set.add(row.owner_username)
+  }
+  return Array.from(set)
 })
 
 const summary = computed(() => {
@@ -95,21 +111,20 @@ function formatTime(ts?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function formatJf(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '—'
-  return `${value.toFixed(2)}%`
+async function refreshHistory() {
+  loadingHistory.value = true
+  try {
+    const items = await listTasks({ limit: 500 })
+    store.replaceAll(items)
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '加载任务历史失败')
+  } finally {
+    loadingHistory.value = false
+  }
 }
 
 onMounted(async () => {
-  const pending = store.items.filter((t) => t.status === 'queued' || t.status === 'running')
-  for (const item of pending) {
-    try {
-      const latest = await getTask(item.task_id)
-      store.upsert(latest)
-    } catch {
-      // Keep local snapshot when the task cannot be fetched.
-    }
-  }
+  await refreshHistory()
 })
 </script>
 
@@ -121,7 +136,7 @@ onMounted(async () => {
         <div class="page-subheading">历史任务管理、筛选与结果复查</div>
       </div>
       <div class="flex gap-2">
-        <el-button class="avs-btn-secondary" @click="store.clear()">清空历史</el-button>
+        <el-button class="avs-btn-secondary" :loading="loadingHistory" @click="refreshHistory">刷新</el-button>
       </div>
     </div>
 
@@ -155,9 +170,25 @@ onMounted(async () => {
           <el-option label="失败" value="failed" />
           <el-option label="已取消" value="canceled" />
         </el-select>
+
+        <el-select
+          v-if="isAdmin"
+          v-model="filterOwner"
+          class="avs-select filter-select"
+          popper-class="avs-select-dropdown"
+        >
+          <el-option label="全部用户" value="all" />
+          <el-option v-for="owner in ownerOptions" :key="owner" :label="owner" :value="owner" />
+        </el-select>
       </div>
 
       <el-table class="avs-table" :data="filteredRows" size="small" style="width: 100%" row-key="task_id">
+        <el-table-column v-if="isAdmin" label="用户" min-width="120">
+          <template #default="scope">
+            <span class="text-main">{{ scope.row.owner_username ?? '—' }}</span>
+          </template>
+        </el-table-column>
+
         <el-table-column label="文件名" min-width="190">
           <template #default="scope">
             <span class="text-main">{{ scope.row.filename ?? '—' }}</span>
@@ -179,12 +210,6 @@ onMounted(async () => {
         <el-table-column label="时间" min-width="170">
           <template #default="scope">
             <span class="text-main">{{ formatTime(scope.row.created_at) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="J&F" min-width="110">
-          <template #default="scope">
-            <span class="mono-text progress-cell">{{ formatJf(scope.row.metrics?.jf_mean) }}</span>
           </template>
         </el-table-column>
 
@@ -250,12 +275,6 @@ onMounted(async () => {
 
 .text-main {
   color: var(--text-primary);
-}
-
-.progress-cell {
-  color: var(--primary);
-  font-size: 13px;
-  font-weight: 600;
 }
 
 .status-pill {

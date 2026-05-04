@@ -37,6 +37,7 @@ export interface TaskProgress {
   width?: number
   height?: number
   metrics?: TaskMetrics
+  owner_username?: string
   created_at?: string
   updated_at?: string
 }

@@ -61,6 +61,7 @@ class TaskProgress(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
     metrics: Optional[TaskMetrics] = None
+    owner_username: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

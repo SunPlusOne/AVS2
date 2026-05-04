@@ -46,6 +46,11 @@ export async function createTask(body: CreateTaskRequest): Promise<{ task_id: st
   return data
 }
 
+export async function listTasks(params?: { username?: string; limit?: number }): Promise<TaskProgress[]> {
+  const { data } = await api.get<TaskProgress[]>('/api/tasks', { params })
+  return data
+}
+
 export async function getTask(taskId: string): Promise<TaskProgress> {
   const { data } = await api.get<TaskProgress>(`/api/tasks/${encodeURIComponent(taskId)}`)
   return data

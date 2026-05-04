@@ -31,6 +31,10 @@ export const useTasksStore = defineStore('tasks', {
     },
   },
   actions: {
+    replaceAll(tasks: TaskProgress[]) {
+      this.items = [...tasks]
+      saveToStorage(this.items)
+    },
     upsert(task: TaskProgress) {
       const idx = this.items.findIndex((t) => t.task_id === task.task_id)
       const next = { ...this.items[idx], ...task }
