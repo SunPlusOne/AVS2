@@ -1,13 +1,16 @@
 import { api } from '@/api/http'
 import type {
+  AdminUserProfile,
   AdminLoginResponse,
   AlgorithmInfo,
   CreateTaskRequest,
   LogEntry,
   TaskProgress,
   TaskReport,
+  UpdateUserRoleResponse,
   UploadResponse,
   UserLoginResponse,
+  UserRole,
 } from '@/types/contracts'
 
 type TaskAssetUrlOptions = {
@@ -96,6 +99,22 @@ export async function getAdminLogs(token: string, params?: { limit?: number }): 
     params,
     headers: { Authorization: `Bearer ${token}` },
   })
+  return data
+}
+
+export async function listAdminUsers(token: string): Promise<AdminUserProfile[]> {
+  const { data } = await api.get<AdminUserProfile[]>('/api/admin/users', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return data
+}
+
+export async function updateAdminUserRole(token: string, userId: number, role: UserRole): Promise<UpdateUserRoleResponse> {
+  const { data } = await api.patch<UpdateUserRoleResponse>(
+    `/api/admin/users/${encodeURIComponent(String(userId))}/role`,
+    { role },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
   return data
 }
 

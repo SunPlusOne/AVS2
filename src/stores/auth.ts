@@ -17,36 +17,41 @@ function writeStoredToken(token: string) {
   }
 }
 
-function decodeJwtRole(token: string): UserRole | '' {
-  if (!token) return ''
+type DecodedAuth = {
+  role: UserRole | ''
+  username: string
+}
+
+function decodeAuthFromJwt(token: string): DecodedAuth {
+  if (!token) return { role: '', username: '' }
   const parts = token.split('.')
-  if (parts.length < 2) return ''
+  if (parts.length < 2) return { role: '', username: '' }
 
   try {
     const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     const padded = b64.padEnd(Math.ceil(b64.length / 4) * 4, '=')
-    const payload = JSON.parse(atob(padded)) as { role?: string; exp?: number }
+    const payload = JSON.parse(atob(padded)) as { role?: string; sub?: string; exp?: number }
     const exp = Number(payload.exp)
     if (Number.isFinite(exp) && exp > 0) {
       const now = Math.floor(Date.now() / 1000)
-      if (exp <= now) return ''
+      if (exp <= now) return { role: '', username: '' }
     }
-    if (payload.role === 'admin' || payload.role === 'user') {
-      return payload.role
-    }
+    const role: UserRole | '' = payload.role === 'admin' || payload.role === 'user' ? payload.role : ''
+    const username = typeof payload.sub === 'string' ? payload.sub : ''
+    return { role, username }
   } catch {
-    return ''
+    return { role: '', username: '' }
   }
-
-  return ''
 }
 
 export const useAuthStore = defineStore('auth', {
   state: () => {
     const token = readStoredToken()
+    const decoded = decodeAuthFromJwt(token)
     return {
       token,
-      role: decodeJwtRole(token) as UserRole | '',
+      role: decoded.role,
+      username: decoded.username,
     }
   },
   getters: {
@@ -55,19 +60,24 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     setAuth(token: string) {
+      const decoded = decodeAuthFromJwt(token)
       this.token = token
-      this.role = decodeJwtRole(token)
+      this.role = decoded.role
+      this.username = decoded.username
       writeStoredToken(token)
     },
     clear() {
       this.token = ''
       this.role = ''
+      this.username = ''
       writeStoredToken('')
     },
     hydrate() {
       const token = readStoredToken()
+      const decoded = decodeAuthFromJwt(token)
       this.token = token
-      this.role = decodeJwtRole(token)
+      this.role = decoded.role
+      this.username = decoded.username
     },
   },
 })

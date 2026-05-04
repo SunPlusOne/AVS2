@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getAdminLogs } from '@/api/avs'
+import { getAdminLogs, listAdminUsers, updateAdminUserRole } from '@/api/avs'
 import { useAuthStore } from '@/stores/auth'
+import type { AdminUserProfile, UserRole } from '@/types/contracts'
 
 const auth = useAuthStore()
 
 const logs = ref<{ ts: string; level: string; message: string }[]>([])
 const loadingLogs = ref(false)
+const users = ref<AdminUserProfile[]>([])
+const loadingUsers = ref(false)
+const roleSavingUserId = ref<number | null>(null)
 
 const benchmarkRows = [
   { model: 'AVSegFormer', s4_jf: '78.7%', ms3_jf: '54.0%', avis_metric: '--', params: '47M', speed: '~50ms/帧' },
@@ -32,6 +36,55 @@ async function onRefreshLogs() {
     loadingLogs.value = false
   }
 }
+
+async function onRefreshUsers() {
+  if (!authed.value) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  loadingUsers.value = true
+  try {
+    users.value = await listAdminUsers(auth.token)
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '加载用户失败')
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+function formatDateTime(v?: string | null): string {
+  if (!v) return '-'
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return v
+  return d.toLocaleString()
+}
+
+async function onToggleUserRole(user: AdminUserProfile) {
+  if (!authed.value) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  if (roleSavingUserId.value != null) {
+    return
+  }
+
+  const nextRole: UserRole = user.role === 'admin' ? 'user' : 'admin'
+  roleSavingUserId.value = user.id
+  try {
+    const res = await updateAdminUserRole(auth.token, user.id, nextRole)
+    users.value = users.value.map((u) => (u.id === res.user.id ? res.user : u))
+    ElMessage.success(`已将 ${user.username} 设置为 ${nextRole === 'admin' ? '管理员' : '普通用户'}`)
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '修改角色失败')
+  } finally {
+    roleSavingUserId.value = null
+  }
+}
+
+onMounted(async () => {
+  if (!authed.value) return
+  await Promise.all([onRefreshUsers(), onRefreshLogs()])
+})
 </script>
 
 <template>
@@ -52,6 +105,46 @@ async function onRefreshLogs() {
         <el-table-column prop="avis_metric" label="AVIS(FSLA/HOTA/mAP)" min-width="210" />
         <el-table-column prop="params" label="参数量" min-width="120" />
         <el-table-column prop="speed" label="推理速度" min-width="140" />
+      </el-table>
+    </div>
+
+    <div class="avs-card">
+      <div class="flex items-end justify-between gap-3">
+        <div>
+          <div class="avs-card-title">用户管理</div>
+          <div class="avs-card-desc">查看全部用户并调整用户权限</div>
+        </div>
+        <el-button class="avs-btn-secondary" :loading="loadingUsers" @click="onRefreshUsers">刷新用户</el-button>
+      </div>
+
+      <el-table class="avs-table users-table" :data="users" size="small" style="width: 100%">
+        <el-table-column prop="id" label="ID" min-width="80" />
+        <el-table-column prop="username" label="用户名" min-width="180" />
+        <el-table-column label="角色" min-width="140">
+          <template #default="scope">
+            <el-tag :type="scope.row.role === 'admin' ? 'danger' : 'info'">
+              {{ scope.row.role === 'admin' ? '管理员' : '普通用户' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" min-width="220">
+          <template #default="scope">{{ formatDateTime(scope.row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column label="最后登录" min-width="220">
+          <template #default="scope">{{ formatDateTime(scope.row.last_login) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" min-width="160" fixed="right">
+          <template #default="scope">
+            <el-button
+              class="avs-btn-secondary"
+              size="small"
+              :loading="roleSavingUserId === scope.row.id"
+              @click="onToggleUserRole(scope.row)"
+            >
+              {{ scope.row.role === 'admin' ? '设为普通用户' : '设为管理员' }}
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </div>
 
@@ -106,6 +199,10 @@ async function onRefreshLogs() {
 }
 
 .benchmark-table {
+  margin-top: 12px;
+}
+
+.users-table {
   margin-top: 12px;
 }
 </style>

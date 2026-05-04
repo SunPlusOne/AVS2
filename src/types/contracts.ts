@@ -100,3 +100,16 @@ export interface LogEntry {
   message: string
 }
 
+export interface AdminUserProfile {
+  id: number
+  username: string
+  role: UserRole
+  created_at: string
+  last_login?: string | null
+}
+
+export interface UpdateUserRoleResponse {
+  ok: boolean
+  user: AdminUserProfile
+}
+

@@ -99,6 +99,39 @@ class UsersRepo:
                 return None
             return {"id": str(user.id), "username": user.username, "role": user.role}
 
+    def list_users(self) -> list[dict]:
+        self.ensure()
+        with db_session_context() as db:
+            users = db.execute(select(User).order_by(User.created_at.desc(), User.id.desc())).scalars().all()
+            return [
+                {
+                    "id": int(u.id),
+                    "username": u.username,
+                    "role": u.role,
+                    "created_at": u.created_at,
+                    "last_login": u.last_login,
+                }
+                for u in users
+            ]
+
+    def update_user_role(self, user_id: int, role: str) -> Optional[dict]:
+        if role not in {"admin", "user"}:
+            raise ValueError("invalid role")
+
+        self.ensure()
+        with db_session_context() as db:
+            user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            if user is None:
+                return None
+            user.role = role
+            return {
+                "id": int(user.id),
+                "username": user.username,
+                "role": user.role,
+                "created_at": user.created_at,
+                "last_login": user.last_login,
+            }
+
     @staticmethod
     def _hash_password(password: str) -> str:
         hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())

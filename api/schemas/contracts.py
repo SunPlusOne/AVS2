@@ -107,3 +107,20 @@ class LogEntry(BaseModel):
     level: str
     message: str
 
+
+class AdminUserProfile(BaseModel):
+    id: int
+    username: str
+    role: Literal["admin", "user"]
+    created_at: datetime
+    last_login: Optional[datetime] = None
+
+
+class UpdateUserRoleRequest(BaseModel):
+    role: Literal["admin", "user"]
+
+
+class UpdateUserRoleResponse(BaseModel):
+    ok: bool
+    user: AdminUserProfile
+
