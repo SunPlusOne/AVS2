@@ -47,11 +47,6 @@ const ownerOptions = computed(() => {
 
 const summary = computed(() => {
   const total = rows.value.length
-  const jfValues = rows.value
-    .map((r) => r.metrics?.jf_mean)
-    .filter((v): v is number => v != null && Number.isFinite(v))
-
-  const avgJf = jfValues.length > 0 ? jfValues.reduce((sum, v) => sum + v, 0) / jfValues.length : null
 
   const algoCounter = new Map<string, number>()
   for (const item of rows.value) {
@@ -70,7 +65,6 @@ const summary = computed(() => {
 
   return {
     total,
-    avgJf,
     topAlgo,
   }
 })
@@ -144,10 +138,6 @@ onMounted(async () => {
       <div class="summary-card">
         <div class="summary-label">总任务数</div>
         <div class="summary-value">{{ summary.total }}</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-label">平均 J&F</div>
-        <div class="summary-value">{{ summary.avgJf == null ? '—' : `${summary.avgJf.toFixed(2)}%` }}</div>
       </div>
       <div class="summary-card">
         <div class="summary-label">最常用算法</div>
@@ -237,7 +227,7 @@ onMounted(async () => {
 <style scoped>
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 

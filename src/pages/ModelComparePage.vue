@@ -218,11 +218,20 @@ function formatPct(v?: number) {
   return `${v.toFixed(2)}%`
 }
 
-function formatTime(metrics?: TaskMetrics) {
-  if (!metrics?.total_inference_ms) return '--'
-  const totalSec = metrics.total_inference_ms / 1000
-  if (!metrics.avg_frame_ms) return `${totalSec.toFixed(2)}s`
-  return `${totalSec.toFixed(2)}s / ${metrics.avg_frame_ms.toFixed(2)}ms/帧`
+function formatTime(item: CompareItem) {
+  const totalMs =
+    item.metrics?.total_inference_ms ??
+    item.report?.metrics?.total_inference_ms ??
+    item.report?.processing?.total_ms
+  const avgFrameMs =
+    item.metrics?.avg_frame_ms ??
+    item.report?.metrics?.avg_frame_ms ??
+    item.report?.processing?.avg_frame_ms
+
+  if (totalMs == null || !Number.isFinite(totalMs) || totalMs <= 0) return '--'
+  const totalSec = totalMs / 1000
+  if (avgFrameMs == null || !Number.isFinite(avgFrameMs) || avgFrameMs <= 0) return `${totalSec.toFixed(2)}s`
+  return `${totalSec.toFixed(2)}s / ${avgFrameMs.toFixed(2)}ms/帧`
 }
 
 function setVideoRef(taskId: string) {
@@ -523,7 +532,7 @@ onBeforeUnmount(() => {
                   耗时
                 </div>
                 <div class="metric-value">
-                  {{ formatTime(item.metrics) }}
+                  {{ formatTime(item) }}
                 </div>
               </div>
             </div>
