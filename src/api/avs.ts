@@ -79,6 +79,12 @@ export function getMasksUrl(taskId: string, options?: TaskAssetUrlOptions): stri
   return buildTaskAssetUrl(path, options)
 }
 
+export function getMaskFrameUrl(taskId: string, frameNo: number, options?: TaskAssetUrlOptions): string {
+  const normalizedFrame = Math.max(1, Math.round(frameNo))
+  const path = `/api/tasks/${encodeURIComponent(taskId)}/mask/${encodeURIComponent(String(normalizedFrame))}`
+  return buildTaskAssetUrl(path, options)
+}
+
 export async function adminLogin(username: string, password: string): Promise<AdminLoginResponse> {
   const { data } = await api.post<AdminLoginResponse>('/api/admin/login', { username, password })
   return data

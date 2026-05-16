@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import zipfile
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from api.deps import get_logs_repo, get_settings, get_task_manager, get_task_runner, get_tasks_repo, get_users_repo
 from api.config import Settings
@@ -172,6 +173,55 @@ async def download_masks(
         filename=f"{task_id}.zip",
         headers=_NO_CACHE_HEADERS,
     )
+
+
+@router.get("/tasks/{task_id}/mask/{frame_no}")
+async def download_mask_frame(
+    task_id: str,
+    frame_no: int,
+    settings: Settings = Depends(get_settings),
+    tasks_repo: TasksRepo = Depends(get_tasks_repo),
+    ok=Depends(user_guard_with_query_token),
+):
+    _ensure_task_access(task_id, ok, tasks_repo)
+    if frame_no <= 0:
+        raise HTTPException(status_code=400, detail="invalid frame number")
+
+    path = settings.masks_dir / f"{task_id}.zip"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="masks not found")
+
+    target_name = f"mask_{frame_no:04d}.png"
+    alternatives = [target_name, f"{frame_no:04d}.png", f"{frame_no}.png"]
+    mask_bytes: bytes | None = None
+
+    try:
+        with zipfile.ZipFile(path, "r") as zf:
+            names = zf.namelist()
+            for name in alternatives:
+                if name in names:
+                    mask_bytes = zf.read(name)
+                    break
+
+            if mask_bytes is None:
+                for name in names:
+                    lower = name.lower()
+                    if not lower.endswith(".png"):
+                        continue
+                    base = lower.rsplit("/", 1)[-1]
+                    if base == target_name:
+                        mask_bytes = zf.read(name)
+                        break
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=500, detail="masks archive is corrupted")
+    except KeyError:
+        raise HTTPException(status_code=404, detail="mask frame not found")
+
+    if mask_bytes is None:
+        raise HTTPException(status_code=404, detail="mask frame not found")
+
+    headers = {**_NO_CACHE_HEADERS, "Content-Type": "image/png"}
+    return Response(content=mask_bytes, media_type="image/png", headers=headers)
 
 
 @router.get("/tasks/{task_id}/report")
