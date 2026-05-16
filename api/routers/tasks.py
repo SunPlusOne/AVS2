@@ -8,10 +8,19 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 
-from api.deps import get_logs_repo, get_settings, get_task_manager, get_task_runner, get_tasks_repo, get_users_repo
+from api.deps import (
+    get_fusion_service,
+    get_logs_repo,
+    get_settings,
+    get_task_manager,
+    get_task_runner,
+    get_tasks_repo,
+    get_users_repo,
+)
 from api.config import Settings
 from api.schemas.contracts import CreateTaskRequest, CreateTaskResponse, TaskProgress
 from api.services.auth import user_guard, user_guard_with_query_token
+from api.services.fusion_service import FusionService
 from api.services.logs_repo import LogsRepo
 from api.services.task_manager import TaskManager
 from api.services.tasks_repo import TasksRepo
@@ -27,6 +36,13 @@ _NO_CACHE_HEADERS = {
     "Pragma": "no-cache",
     "Expires": "0",
 }
+
+
+async def _to_thread_compat(fn, /, *args, **kwargs):
+    if hasattr(asyncio, "to_thread"):
+        return await asyncio.to_thread(fn, *args, **kwargs)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, lambda: fn(*args, **kwargs))
 
 
 def _ensure_task_access(task_id: str, ok: dict, tasks_repo: TasksRepo) -> None:
@@ -240,3 +256,42 @@ async def get_task_report(
     except Exception:
         raise HTTPException(status_code=500, detail="report parse failed")
     return data
+
+
+@router.get("/fusions/intersection/result")
+async def download_intersection_fusion_result(
+    task_id: List[str] = Query(default=[]),
+    tasks_repo: TasksRepo = Depends(get_tasks_repo),
+    fusion_service: FusionService = Depends(get_fusion_service),
+    ok=Depends(user_guard_with_query_token),
+):
+    ids = [str(x).strip() for x in task_id if str(x).strip()]
+    # Keep user-selected ordering while removing duplicates.
+    ids = list(dict.fromkeys(ids))
+    if len(ids) < 2:
+        raise HTTPException(status_code=400, detail="at least two task_id are required")
+
+    for one_id in ids:
+        _ensure_task_access(one_id, ok, tasks_repo)
+
+    try:
+        out_path = await _to_thread_compat(
+            fusion_service.get_or_build_intersection_video,
+            task_ids=ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    if not out_path.exists():
+        raise HTTPException(status_code=404, detail="fusion result not found")
+
+    return FileResponse(
+        str(out_path),
+        media_type="video/mp4",
+        filename=out_path.name,
+        headers=_NO_CACHE_HEADERS,
+    )

@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from api.config import get_settings
 from api.routers import admin, algorithms, health, tasks, upload, user, ws
 from api.services.algorithms_repo import AlgorithmsRepo
+from api.services.fusion_service import FusionService
 from api.services.inference_service import InferenceService
 from api.services.logs_repo import LogsRepo
 from api.services.task_manager import TaskManager
@@ -39,6 +40,14 @@ def create_app() -> FastAPI:
         users_repo=users_repo,
     )
     inference = InferenceService(settings.uploads_dir, settings.results_dir, settings.masks_dir, logger)
+    fusion_service = FusionService(
+        data_dir=settings.data_dir,
+        tasks_dir=settings.tasks_dir,
+        uploads_dir=settings.uploads_dir,
+        masks_dir=settings.masks_dir,
+        results_dir=settings.results_dir,
+        logger=logger,
+    )
     task_runner = TaskRunner(task_manager, inference, algorithms_repo, logger)
 
     app = FastAPI(title="AVS System", version="0.1.0")
@@ -58,6 +67,7 @@ def create_app() -> FastAPI:
     app.state.tasks_repo = tasks_repo
     app.state.task_manager = task_manager
     app.state.task_runner = task_runner
+    app.state.fusion_service = fusion_service
 
     app.include_router(health.router, prefix="/api")
     app.include_router(upload.router, prefix="/api")

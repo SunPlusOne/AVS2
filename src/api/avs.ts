@@ -85,6 +85,23 @@ export function getMaskFrameUrl(taskId: string, frameNo: number, options?: TaskA
   return buildTaskAssetUrl(path, options)
 }
 
+export function getFusionIntersectionUrl(taskIds: string[], options?: TaskAssetUrlOptions): string {
+  const params = new URLSearchParams()
+  for (const taskId of taskIds) {
+    const clean = String(taskId || '').trim()
+    if (clean) params.append('task_id', clean)
+  }
+  if (options?.cacheBust != null) {
+    params.set('v', String(options.cacheBust))
+  }
+  if (options?.authToken) {
+    params.set('token', options.authToken)
+  }
+  const query = params.toString()
+  const path = '/api/fusions/intersection/result'
+  return query ? `${path}?${query}` : path
+}
+
 export async function adminLogin(username: string, password: string): Promise<AdminLoginResponse> {
   const { data } = await api.post<AdminLoginResponse>('/api/admin/login', { username, password })
   return data

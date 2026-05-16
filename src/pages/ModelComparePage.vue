@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { createTask, getMaskFrameUrl, getTask, getTaskReport, getResultUrl } from '@/api/avs'
+import { createTask, getFusionIntersectionUrl, getTask, getTaskReport, getResultUrl } from '@/api/avs'
 import * as VideoUploadCardModule from '@/components/VideoUploadCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import type {
@@ -41,14 +41,10 @@ const launching = ref(false)
 const compareItems = ref<CompareItem[]>([])
 const videoMap = ref<Record<string, HTMLVideoElement | null>>({})
 const fusionVideoRef = ref<HTMLVideoElement | null>(null)
-const fusionCanvasRef = ref<HTMLCanvasElement | null>(null)
-const originalVideoUrl = ref('')
+const fusionLoadFailed = ref(false)
 const currentFrame = ref(1)
 let pollTimer: number | null = null
 let syncingVideos = false
-let fusionRenderSeq = 0
-
-const maskImageCache = new Map<string, Promise<ImageBitmap | null>>()
 
 const canStart = computed(() => !!uploaded.value?.file_id && selectedAlgorithms.value.length >= 2 && !launching.value)
 
@@ -78,6 +74,17 @@ const effectiveFps = computed(() => {
 })
 
 const hasFinishedResult = computed(() => compareItems.value.some((item) => item.status === 'completed'))
+
+const completedTaskIds = computed(() => compareItems.value.filter((item) => item.status === 'completed').map((item) => item.taskId))
+
+const fusionVideoUrl = computed(() => {
+  if (completedTaskIds.value.length < 2) return ''
+  const cacheBust = completedTaskIds.value.join('-')
+  return getFusionIntersectionUrl(completedTaskIds.value, {
+    cacheBust,
+    authToken: auth.token || undefined,
+  })
+})
 
 const chartRows = computed(() => {
   return compareItems.value
@@ -112,19 +119,6 @@ function onSelectedFile(file: File) {
   originalFile.value = file
   uploaded.value = null
 }
-
-watch(originalFile, (next, prev) => {
-  if (originalVideoUrl.value) {
-    URL.revokeObjectURL(originalVideoUrl.value)
-    originalVideoUrl.value = ''
-  }
-  if (next) {
-    originalVideoUrl.value = URL.createObjectURL(next)
-  }
-  if (prev && prev !== next) {
-    maskImageCache.clear()
-  }
-})
 
 function cleanupPolling() {
   if (pollTimer != null) {
@@ -161,7 +155,6 @@ async function refreshItems() {
 
         if (latest.status === 'completed' && !item.report) {
           await fetchReport(item)
-          requestFusionRender()
         }
       } catch {
         return
@@ -187,7 +180,6 @@ async function startCompare() {
 
   cleanupPolling()
   compareItems.value = []
-  maskImageCache.clear()
   launching.value = true
 
   try {
@@ -262,13 +254,9 @@ function setVideoRef(taskId: string) {
 }
 
 function getVideoPairs() {
-  const pairs = compareItems.value
+  return compareItems.value
     .map((item) => ({ id: item.taskId, video: videoMap.value[item.taskId] }))
     .filter((entry): entry is { id: string; video: HTMLVideoElement } => !!entry.video)
-  if (fusionVideoRef.value) {
-    pairs.push({ id: '__fusion__', video: fusionVideoRef.value })
-  }
-  return pairs
 }
 
 function syncBySource(sourceTaskId: string) {
@@ -281,7 +269,10 @@ function syncBySource(sourceTaskId: string) {
   const frame = Math.floor(time * fps) + 1
   const maxFrame = Math.max(totalFrames.value, frame)
   currentFrame.value = Math.max(1, Math.min(maxFrame, frame))
-  requestFusionRender()
+
+  // Fusion video should feel like normal single-video playback.
+  // Do not force-seek all compare videos on every fusion timeupdate.
+  if (sourceTaskId === '__fusion__') return
 
   syncingVideos = true
   for (const { id: taskId, video } of getVideoPairs()) {
@@ -295,152 +286,26 @@ function syncBySource(sourceTaskId: string) {
   }, 0)
 }
 
-function getCompletedTaskIds() {
-  return compareItems.value.filter((item) => item.status === 'completed').map((item) => item.taskId)
-}
-
-function updateFusionCanvasSize() {
-  const video = fusionVideoRef.value
-  const canvas = fusionCanvasRef.value
-  if (!video || !canvas) return false
-  const width = video.videoWidth || uploaded.value?.width || 0
-  const height = video.videoHeight || uploaded.value?.height || 0
-  if (width <= 0 || height <= 0) return false
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width
-    canvas.height = height
-  }
-  return true
-}
-
-async function loadMaskBitmap(taskId: string, frameNo: number): Promise<ImageBitmap | null> {
-  const normalizedFrame = Math.max(1, Math.round(frameNo))
-  const key = `${taskId}:${normalizedFrame}`
-  const cached = maskImageCache.get(key)
-  if (cached) return cached
-
-  const request = (async () => {
-    try {
-      const url = getMaskFrameUrl(taskId, normalizedFrame, {
-        cacheBust: `${taskId}-${normalizedFrame}`,
-        authToken: auth.token || undefined,
-      })
-      const resp = await fetch(url)
-      if (!resp.ok) return null
-      const blob = await resp.blob()
-      return await createImageBitmap(blob)
-    } catch {
-      return null
-    }
-  })()
-
-  maskImageCache.set(key, request)
-  if (maskImageCache.size > 600) {
-    maskImageCache.clear()
-    maskImageCache.set(key, request)
-  }
-  return request
-}
-
-function buildIntersectionMask(bitmaps: ImageBitmap[], width: number, height: number): Uint8Array {
-  const pixels = width * height
-  const intersection = new Uint8Array(pixels)
-  intersection.fill(1)
-
-  const workCanvas = document.createElement('canvas')
-  workCanvas.width = width
-  workCanvas.height = height
-  const workCtx = workCanvas.getContext('2d', { willReadFrequently: true })
-  if (!workCtx) {
-    intersection.fill(0)
-    return intersection
-  }
-
-  for (const bitmap of bitmaps) {
-    workCtx.clearRect(0, 0, width, height)
-    workCtx.drawImage(bitmap, 0, 0, width, height)
-    const rgba = workCtx.getImageData(0, 0, width, height).data
-    for (let i = 0; i < pixels; i += 1) {
-      if (intersection[i] === 0) continue
-      const p = i * 4
-      const alpha = rgba[p + 3]
-      const intensity = (rgba[p] + rgba[p + 1] + rgba[p + 2]) / 3
-      const isForeground = alpha > 10 && intensity > 10
-      if (!isForeground) {
-        intersection[i] = 0
-      }
-    }
-  }
-
-  return intersection
-}
-
-async function renderFusionOverlay() {
-  const seq = ++fusionRenderSeq
-  const canvas = fusionCanvasRef.value
-  if (!canvas || !updateFusionCanvasSize()) return
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  const taskIds = getCompletedTaskIds()
-  if (taskIds.length < 2) return
-
-  const frameNo = currentFrame.value
-  const maskResults = await Promise.all(taskIds.map((taskId) => loadMaskBitmap(taskId, frameNo)))
-  if (seq !== fusionRenderSeq) return
-  if (maskResults.some((item) => !item)) return
-
-  const bitmaps = maskResults as ImageBitmap[]
-  const intersection = buildIntersectionMask(bitmaps, canvas.width, canvas.height)
-  const overlay = ctx.createImageData(canvas.width, canvas.height)
-  for (let i = 0; i < intersection.length; i += 1) {
-    if (intersection[i] === 0) continue
-    const p = i * 4
-    overlay.data[p] = 16
-    overlay.data[p + 1] = 185
-    overlay.data[p + 2] = 129
-    overlay.data[p + 3] = 150
-  }
-  ctx.putImageData(overlay, 0, 0)
-}
-
-function requestFusionRender() {
-  window.requestAnimationFrame(() => {
-    renderFusionOverlay()
-  })
-}
-
 function onFusionTimeUpdate() {
   syncBySource('__fusion__')
 }
 
-function onFusionMetaReady() {
-  requestFusionRender()
+function onFusionLoaded() {
+  fusionLoadFailed.value = false
+}
+
+function onFusionError() {
+  fusionLoadFailed.value = true
 }
 
 onBeforeUnmount(() => {
   cleanupPolling()
-  if (originalVideoUrl.value) {
-    URL.revokeObjectURL(originalVideoUrl.value)
-    originalVideoUrl.value = ''
-  }
-  maskImageCache.clear()
 })
 
-watch(
-  () => compareItems.value.map((item) => `${item.taskId}:${item.status}`).join('|'),
-  () => {
-    requestFusionRender()
-  },
-)
-
-watch(currentFrame, () => {
-  requestFusionRender()
-})
-
-watch(originalVideoUrl, () => {
-  requestFusionRender()
+watch(fusionVideoUrl, () => {
+  fusionLoadFailed.value = false
+  const v = fusionVideoRef.value
+  if (v) v.currentTime = 0
 })
 </script>
 
@@ -528,31 +393,43 @@ watch(originalVideoUrl, () => {
             融合结果展示
           </div>
           <div class="avs-card-desc">
-            将已完成模型的逐帧掩码取交集，并覆盖到原视频上
+            后端预合成交集掩码覆盖视频，前端直接播放，避免逐帧闪烁
           </div>
 
-          <div class="fusion-stage mt-3">
+          <div
+            v-if="fusionVideoUrl"
+            class="fusion-stage mt-3"
+          >
             <video
               ref="fusionVideoRef"
               class="fusion-video"
               controls
-              :src="originalVideoUrl || undefined"
+              :src="fusionVideoUrl"
               preload="metadata"
-              @loadedmetadata="onFusionMetaReady"
+              @loadeddata="onFusionLoaded"
               @timeupdate="onFusionTimeUpdate"
               @seeked="onFusionTimeUpdate"
+              @error="onFusionError"
             />
-            <canvas
-              ref="fusionCanvasRef"
-              class="fusion-canvas"
-            />
+          </div>
+          <div
+            v-else
+            class="video-placeholder mt-3"
+          >
+            至少有 2 个模型完成后才会生成融合结果视频
           </div>
 
           <div class="fusion-hint">
             当前帧：{{ currentFrame }} / {{ totalFrames > 0 ? totalFrames : '--' }}，参与交集模型：{{ compareItems.filter((item) => item.status === 'completed').length }}
           </div>
           <div class="fusion-note">
-            至少有 2 个模型完成后才会显示交集覆盖。
+            首次播放会触发后端合成，耗时与视频长度及分辨率相关。
+          </div>
+          <div
+            v-if="fusionLoadFailed"
+            class="fusion-error"
+          >
+            融合结果加载失败，请确认参与对比的是同一上传视频并稍后重试。
           </div>
         </div>
 
@@ -732,14 +609,6 @@ watch(originalVideoUrl, () => {
   border-radius: 10px;
 }
 
-.fusion-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 .fusion-hint {
   margin-top: 8px;
   color: var(--text-secondary);
@@ -749,6 +618,12 @@ watch(originalVideoUrl, () => {
 .fusion-note {
   margin-top: 4px;
   color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.fusion-error {
+  margin-top: 8px;
+  color: var(--danger);
   font-size: 12px;
 }
 

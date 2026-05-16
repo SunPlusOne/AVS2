@@ -4,6 +4,7 @@ from fastapi import Request
 
 from api.config import Settings
 from api.services.algorithms_repo import AlgorithmsRepo
+from api.services.fusion_service import FusionService
 from api.services.logs_repo import LogsRepo
 from api.services.task_manager import TaskManager
 from api.services.tasks_repo import TasksRepo
@@ -42,4 +43,8 @@ def get_logs_repo(request: Request) -> LogsRepo:
 
 def get_tasks_repo(request: Request) -> TasksRepo:
     return request.app.state.tasks_repo
+
+
+def get_fusion_service(request: Request) -> FusionService:
+    return request.app.state.fusion_service
 
