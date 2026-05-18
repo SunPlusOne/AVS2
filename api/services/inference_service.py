@@ -267,6 +267,9 @@ class InferenceService:
         elif algorithm == "avsegformer":
             env_path = settings.env_avsegformer
             script_path = "api/scripts/infer_avsegformer.py"
+        elif algorithm == "mavsnet":
+            env_path = settings.env_mavsnet
+            script_path = "api/scripts/infer_mavsnet.py"
         elif algorithm == "vct":
             env_path = settings.env_vct
             script_path = "api/scripts/infer_vct.py"
@@ -309,7 +312,7 @@ class InferenceService:
             "--results_dir", str(self._results_dir),
             "--masks_dir", str(self._masks_dir),
         ]
-        if algorithm in {"combo", "vct", "avsegformer"} and subset:
+        if algorithm in {"combo", "vct", "avsegformer", "mavsnet"} and subset:
             cmd.extend(["--subset", subset])
         
         self._logger.info(f"Starting subprocess (timeout={infer_timeout_sec}s): {' '.join(cmd)}")
@@ -343,6 +346,16 @@ class InferenceService:
             stderr_text = (e.stderr or "").strip()
             stdout_text = (e.stdout or "").strip()
             detail = stderr_text or stdout_text or str(e)
+
+            if algorithm == "avsegformer" and (
+                "Detected MAVS-Net checkpoint for AVSegFormer inference" in detail
+                or "head.bfm_block" in detail
+            ):
+                detail = (
+                    "当前任务选择的是 AVSegFormer，但权重属于 MAVS-Net。"
+                    "请在前端选择 MAVS-Net 算法，或替换 AVS_WEIGHT_AVSEGFORMER_S4/MS3 为真正的 AVSegFormer 权重。"
+                )
+
             self._logger.error(f"Subprocess failed: {detail}")
             raise RuntimeError(f"Inference script failed: {detail}")
 

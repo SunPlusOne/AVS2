@@ -55,7 +55,8 @@ const statusDescription = computed(() => {
 
 function formatPct(value?: number): string {
   if (value == null || !Number.isFinite(value)) return '--'
-  return `${value.toFixed(2)}%`
+  const pct = value <= 1 ? value * 100 : value
+  return `${pct.toFixed(2)}%`
 }
 
 function formatTime(totalMs?: number, avgFrameMs?: number): string {
@@ -90,8 +91,8 @@ const metricsCards = computed(() => {
     ]
   }
   return [
-    { label: 'J (Jaccard)', value: formatPct(metrics?.jaccard) },
-    { label: 'F (F-measure)', value: formatPct(metrics?.f_measure) },
+    { label: 'mIoU', value: formatPct(metrics?.jaccard) },
+    { label: 'F-score', value: formatPct(metrics?.f_measure) },
     {
       label: '推理耗时',
       value: formatTime(metrics?.total_inference_ms, metrics?.avg_frame_ms),

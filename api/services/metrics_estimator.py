@@ -12,6 +12,10 @@ _FIXED_METRICS = {
         "s4": {"jaccard": 78.7, "f_measure": 87.9, "jf_mean": 83.3},
         "ms3": {"jaccard": 54.0, "f_measure": 64.5, "jf_mean": 59.25},
     },
+    "mavsnet": {
+        "s4": {"jaccard": 0.8365, "f_measure": 0.9745, "jf_mean": 0.9055},
+        "ms3": {"jaccard": 0.6192, "f_measure": 0.7475, "jf_mean": 0.6834},
+    },
     "vct": {
         "s4": {"jaccard": 86.2, "f_measure": 93.4, "jf_mean": 89.8},
         "ms3": {"jaccard": 67.6, "f_measure": 81.4, "jf_mean": 74.5},

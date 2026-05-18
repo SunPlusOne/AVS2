@@ -14,10 +14,11 @@ const loadingUsers = ref(false)
 const roleSavingUserId = ref<number | null>(null)
 
 const benchmarkRows = [
-  { model: 'AVSegFormer', s4_jf: '78.7%', ms3_jf: '54.0%', avis_metric: '--', params: '47M', speed: '~50ms/帧' },
-  { model: 'VCT', s4_jf: '86.2%', ms3_jf: '67.6%', avis_metric: '--', params: '52M', speed: '~80ms/帧' },
-  { model: 'COMBO', s4_jf: '84.7%', ms3_jf: '59.2%', avis_metric: '--', params: '68M', speed: '~100ms/帧' },
-  { model: 'AVIS', s4_jf: '-', ms3_jf: '-', avis_metric: '42.78 / 61.73 / 40.57', params: '-', speed: '-' },
+  { model: 'AVSegFormer', s4_metric: '78.7% / 87.9%', ms3_metric: '54.0% / 64.5%', avis_metric: '--', params: '47M', speed: '~50ms/帧' },
+  { model: 'MAVS-Net', s4_metric: '83.65% / 97.45%', ms3_metric: '61.92% / 74.75%', avis_metric: '--', params: '47M', speed: '~50ms/帧' },
+  { model: 'VCT', s4_metric: '86.2% / 93.4%', ms3_metric: '67.6% / 81.4%', avis_metric: '--', params: '52M', speed: '~80ms/帧' },
+  { model: 'COMBO', s4_metric: '84.7% / 91.9%', ms3_metric: '59.2% / 71.2%', avis_metric: '--', params: '68M', speed: '~100ms/帧' },
+  { model: 'AVIS', s4_metric: '-', ms3_metric: '-', avis_metric: '42.78 / 61.73 / 40.57', params: '-', speed: '-' },
 ]
 
 const authed = computed(() => auth.isLoggedIn && auth.isAdmin)
@@ -100,8 +101,8 @@ onMounted(async () => {
 
       <el-table class="avs-table benchmark-table" :data="benchmarkRows" size="small" style="width: 100%">
         <el-table-column prop="model" label="模型" min-width="140" />
-        <el-table-column prop="s4_jf" label="S4 J&F" min-width="120" />
-        <el-table-column prop="ms3_jf" label="MS3 J&F" min-width="120" />
+        <el-table-column prop="s4_metric" label="S4 mIoU / F-score" min-width="170" />
+        <el-table-column prop="ms3_metric" label="MS3 mIoU / F-score" min-width="170" />
         <el-table-column prop="avis_metric" label="AVIS(FSLA/HOTA/mAP)" min-width="210" />
         <el-table-column prop="params" label="参数量" min-width="120" />
         <el-table-column prop="speed" label="推理速度" min-width="140" />

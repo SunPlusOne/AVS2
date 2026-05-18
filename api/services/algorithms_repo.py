@@ -19,6 +19,14 @@ DEFAULT_ALGORITHMS: list[dict[str, Any]] = [
         "enabled": True,
     },
     {
+        "id": "mavsnet",
+        "name": "MAVS-Net",
+        "version": "builtin",
+        "description": "MAVS-Net 视听分割算法，支持 S4/MS3 本地推理。",
+        "input_size": "512x512",
+        "enabled": True,
+    },
+    {
         "id": "avis",
         "name": "AVIS",
         "version": "builtin",

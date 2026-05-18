@@ -19,6 +19,7 @@ const authStore = useAuthStore()
 
 const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
   { id: 'avsegformer', label: 'AVSegFormer' },
+  { id: 'mavsnet', label: 'MAVS-Net' },
   { id: 'avis', label: 'AVIS' },
   { id: 'vct', label: 'VCT' },
   { id: 'combo', label: 'COMBO' },
@@ -221,11 +222,11 @@ onBeforeUnmount(() => {
 
       <div class="avs-card w-full">
         <div class="flex items-center gap-2">
-          <span class="avs-badge-inline">AVSegFormer / AVIS / VCT / COMBO 已接入</span>
+          <span class="avs-badge-inline">AVSegFormer / MAVS-Net / AVIS / VCT / COMBO 已接入</span>
           <div class="avs-note-title">说明</div>
         </div>
         <div class="mt-1 avs-note-desc">
-          当前支持 AVSegFormer、AVIS、VCT 和 COMBO 的本地推理。请按实际视频内容手动选择“使用场景”。
+          当前支持 AVSegFormer、MAVS-Net、AVIS、VCT 和 COMBO 的本地推理。请按实际视频内容手动选择“使用场景”。
           语义分割权重（AVSS）暂不在本页面开放。
         </div>
       </div>

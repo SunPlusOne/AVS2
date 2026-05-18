@@ -26,6 +26,7 @@ interface CompareItem {
 
 const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
   { id: 'avsegformer', label: 'AVSegFormer' },
+  { id: 'mavsnet', label: 'MAVS-Net' },
   { id: 'avis', label: 'AVIS' },
   { id: 'vct', label: 'VCT' },
   { id: 'combo', label: 'COMBO' },
@@ -34,7 +35,7 @@ const allAlgorithms: Array<{ id: AlgorithmId; label: string }> = [
 const uploaded = ref<UploadResponse | null>(null)
 const originalFile = ref<File | null>(null)
 const auth = useAuthStore()
-const selectedAlgorithms = ref<AlgorithmId[]>(['avsegformer', 'avis', 'vct', 'combo'])
+const selectedAlgorithms = ref<AlgorithmId[]>(['mavsnet', 'avis', 'vct', 'combo'])
 const selectedScene = ref<InferenceScene>('single_source')
 const launching = ref(false)
 
@@ -103,12 +104,17 @@ const chartRows = computed(() => {
       return {
         algorithm: item.algorithm,
         metrics: [
-          { label: 'J', value: item.metrics?.jaccard ?? 0, cls: 'bar-j' },
-          { label: 'F', value: item.metrics?.f_measure ?? 0, cls: 'bar-f' },
+          { label: 'mIoU', value: item.metrics?.jaccard ?? 0, cls: 'bar-j' },
+          { label: 'F-score', value: item.metrics?.f_measure ?? 0, cls: 'bar-f' },
         ],
       }
     })
 })
+
+function toPct(value?: number): number {
+  if (value == null || !Number.isFinite(value)) return 0
+  return value <= 1 ? value * 100 : value
+}
 
 function onUploaded(payload: { file: File; res: UploadResponse }) {
   uploaded.value = payload.res
@@ -228,7 +234,7 @@ function statusClass(status: TaskStatus) {
 
 function formatPct(v?: number) {
   if (v == null || !Number.isFinite(v)) return '--'
-  return `${v.toFixed(2)}%`
+  return `${toPct(v).toFixed(2)}%`
 }
 
 function formatTime(item: CompareItem) {
@@ -513,7 +519,7 @@ watch(fusionVideoUrl, () => {
               <template v-else>
                 <div class="metric-cell">
                   <div class="metric-label">
-                    J
+                    mIoU
                   </div>
                   <div class="metric-value">
                     {{ formatPct(item.metrics?.jaccard) }}
@@ -521,7 +527,7 @@ watch(fusionVideoUrl, () => {
                 </div>
                 <div class="metric-cell">
                   <div class="metric-label">
-                    F
+                    F-score
                   </div>
                   <div class="metric-value">
                     {{ formatPct(item.metrics?.f_measure) }}
@@ -548,7 +554,7 @@ watch(fusionVideoUrl, () => {
             模型指标柱状对比
           </div>
           <div class="avs-card-desc">
-            按当前对比任务展示指标：AVS 模型显示 J/F，AVIS 显示 FSLA/HOTA/mAP
+            按当前对比任务展示指标：AVS 模型显示 mIoU/F-score，AVIS 显示 FSLA/HOTA/mAP
           </div>
 
           <div class="chart-wrap">
@@ -571,7 +577,7 @@ watch(fusionVideoUrl, () => {
                   <div
                     class="bar-fill"
                     :class="metric.cls"
-                    :style="{ width: `${Math.max(0, Math.min(100, metric.value))}%` }"
+                    :style="{ width: `${Math.max(0, Math.min(100, toPct(metric.value)))}%` }"
                   />
                 </div>
                 <span class="bar-value">{{ formatPct(metric.value) }}</span>

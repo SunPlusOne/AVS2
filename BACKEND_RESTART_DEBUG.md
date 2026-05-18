@@ -172,6 +172,34 @@ AVS_WEIGHT_VCT=/root/AVS2/api/data/models/vct/s4/model_best.pth
 
 如果你要切换 `ms3/ss`，把 `AVS_WEIGHT_VCT` 改为对应 `model_best.pth` 路径后重启后端。
 
+### 4.7 MAVS-Net 本地推理配置
+
+现象：任务失败，提示 `Python environment for mavsnet is not configured`、`MAVS-Net source not found`、`VGGish pretrained weight not found` 或 `weight file not found`。
+
+处理：在 `.env` 增加以下配置（按你的实际路径调整）：
+
+```ini
+AVS_ENV_MAVSNET=/root/autodl-tmp/conda/envs/avsegformer
+AVS_MAVSNET_ROOT=/root/AVS2/api/third_party/mavsnet-avsegformer
+AVS_MAVSNET_VGGISH=/root/autodl-tmp/COMBO-AVS/pretrained/vggish-10086976.pth
+AVS_WEIGHT_MAVSNET_S4=/root/AVS2/api/data/models/mavsnet/s4/S4_best.pth
+AVS_WEIGHT_MAVSNET_MS3=/root/AVS2/api/data/models/mavsnet/ms3/MS3_best.pth
+```
+
+说明：
+
+- `AVS_WEIGHT_MAVSNET_S4` 对应单个物体发声场景。
+- `AVS_WEIGHT_MAVSNET_MS3` 对应多个物体同时发声场景。
+- 适配器会自动从 checkpoint 判断 `pvt2/res50`，不需要手工指定 backbone。
+- MAVS-Net 与 AVSegFormer 现在是严格隔离的：MAVS-Net 仅加载 `AVS_MAVSNET_ROOT` 与 `AVS_WEIGHT_MAVSNET_*`，不会回退到 AVSegFormer 目录。
+
+改完后重启后端：
+
+```bash
+cd /root/AVS2
+./scripts/backend_ctl.sh restart
+```
+
 ### 4.7 任务成功但分割视频播放失败
 
 现象：任务状态是 `completed`，但前端播放不了结果视频。

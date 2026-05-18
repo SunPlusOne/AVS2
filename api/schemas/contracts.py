@@ -6,7 +6,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-AlgorithmId = Literal["avsegformer", "avis", "vct", "combo"]
+AlgorithmId = Literal["avsegformer", "mavsnet", "avis", "vct", "combo"]
 SceneId = Literal["single_source", "multi_source"]
 TaskStatus = Literal["queued", "running", "completed", "failed", "canceled"]
 

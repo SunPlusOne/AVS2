@@ -1,0 +1,34 @@
+pycache/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.build/
+dist/
+Environment
+.env
+.venv/
+venv/
+IDE
+.vscode/
+.idea/
+Logs and runtime
+.log
+nohup.out
+screenlog.
+Training artifacts
+work_dir/
+pretrained/
+data/
+checkpoints/
+runs/
+wandb/
+Large model files
+*.pth
+*.pt
+*.ckpt
+*.bin
+*.onnx
+OS
+.DS_Store

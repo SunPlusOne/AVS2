@@ -112,10 +112,22 @@ class TaskRunner:
         jaccard = self._to_float(metrics.get("jaccard"))
         if jaccard is None:
             jaccard = self._to_float(metrics.get("J"))
+        if jaccard is None:
+            jaccard = self._to_float(metrics.get("mIoU"))
+        if jaccard is None:
+            jaccard = self._to_float(metrics.get("M_J"))
+        if jaccard is None:
+            jaccard = self._to_float(metrics.get("mJ"))
 
         f_measure = self._to_float(metrics.get("f_measure"))
         if f_measure is None:
             f_measure = self._to_float(metrics.get("F"))
+        if f_measure is None:
+            f_measure = self._to_float(metrics.get("F-score"))
+        if f_measure is None:
+            f_measure = self._to_float(metrics.get("M_F"))
+        if f_measure is None:
+            f_measure = self._to_float(metrics.get("mF"))
 
         jf_mean = self._to_float(metrics.get("jf_mean"))
         if jf_mean is None:
@@ -283,6 +295,22 @@ class TaskRunner:
                 add(str(settings.models_dir / algorithm / subset / "MS3_best.pth"))
                 add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_pvt2_ms3" / "MS3_best.pth"))
                 add(str(Path(avsegformer_root) / "work_dir" / "AVSegFormer_res50_ms3" / "MS3_best.pth"))
+        elif algorithm == "mavsnet":
+            project_root = Path(__file__).resolve().parent.parent.parent
+            mavsnet_root = os.getenv("AVS_MAVSNET_ROOT", "").strip()
+            mavsnet_root = mavsnet_root or str(project_root / "api" / "third_party" / "mavsnet-avsegformer")
+            if subset == "s4":
+                add(str(settings.models_dir / algorithm / version / "S4_best.pth"))
+                add(str(settings.models_dir / algorithm / "builtin" / "S4_best.pth"))
+                add(str(settings.models_dir / algorithm / subset / "S4_best.pth"))
+                add(str(Path(mavsnet_root) / "work_dir" / "MAVSNet_pvt2_s4" / "S4_best.pth"))
+                add(str(Path(mavsnet_root) / "work_dir" / "MAVSNet_res50_s4" / "S4_best.pth"))
+            elif subset == "ms3":
+                add(str(settings.models_dir / algorithm / version / "MS3_best.pth"))
+                add(str(settings.models_dir / algorithm / "builtin" / "MS3_best.pth"))
+                add(str(settings.models_dir / algorithm / subset / "MS3_best.pth"))
+                add(str(Path(mavsnet_root) / "work_dir" / "MAVSNet_pvt2_ms3" / "MS3_best.pth"))
+                add(str(Path(mavsnet_root) / "work_dir" / "MAVSNet_res50_ms3" / "MS3_best.pth"))
         elif algorithm == "avis":
             project_root = Path(__file__).resolve().parent.parent.parent
             avis_root = os.getenv("AVS_AVIS_ROOT", "").strip()
@@ -459,7 +487,7 @@ class TaskRunner:
             
             should_use_remote = bool(settings.remote_inference_url)
             has_local_weight = bool(weight_path) and os.path.isfile(weight_path)
-            supports_local_inference = algorithm in {"combo", "vct", "avsegformer", "avis"}
+            supports_local_inference = algorithm in {"combo", "vct", "avsegformer", "mavsnet", "avis"}
             
             if should_use_remote:
                 await self._manager.update(task_id, message=f"正在请求远程推理 ({algorithm})...")

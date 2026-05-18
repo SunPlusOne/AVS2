@@ -198,6 +198,14 @@ class AvSegFormerAdapter:
         checkpoint = _load_checkpoint_payload(weight_path, map_location=self.device)
         state_dict = _normalize_state_dict(_unwrap_state_dict(checkpoint))
 
+        # Fast-fail on MAVS-Net checkpoints to avoid noisy missing/unexpected lists.
+        if any(str(k).startswith("head.bfm_block.") for k in state_dict.keys()):
+            raise RuntimeError(
+                "Detected MAVS-Net checkpoint for AVSegFormer inference. "
+                "Please run with algorithm='mavsnet' or provide true AVSegFormer weights in "
+                "AVS_WEIGHT_AVSEGFORMER_S4/AVS_WEIGHT_AVSEGFORMER_MS3."
+            )
+
         self.model = build_model(**self.cfg.model)
         missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
         if missing or unexpected:
